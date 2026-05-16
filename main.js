@@ -91,7 +91,7 @@ const SYSTEM_TILT = Math.PI / 6; // planet's spin axis and the ring plane use th
 
 // Planet
 const spherePointsCount = 3000;
-const sphereRadius = 3;
+const sphereRadius = 2.7; // Reduced from 3
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
@@ -122,8 +122,8 @@ planetTilt.add(planetSpin);
 scene.add(planetTilt);
 
 // Ring
-const RING_INNER = 4.25;
-const RING_OUTER = 4.85;
+const RING_INNER = 3.825; // Reduced from 4.25
+const RING_OUTER = 4.365; // Reduced from 4.85
 const RING_COUNT = 2000;
 const RING_THICKNESS = 0.08; // slight vertical scatter
 const RING_SPIN = 0.14; // rad/s
