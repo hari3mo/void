@@ -150,10 +150,6 @@ body.loaded .left-rule {
     transition: transform 0.32s cubic-bezier(.2, .7, .2, 1);
 }
 
-.link:hover {
-    transform: translateX(6px);
-}
-
 .link:hover .link-label {
     opacity: 1;
 }
