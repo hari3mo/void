@@ -270,3 +270,37 @@ body.loaded .intro {
 body.loaded .cursor-coords {
     opacity: 0.35;
 }
+
+@media (max-width: 600px) {
+    .identity {
+        left: 20px;
+        top: 24px;
+        max-width: 200px;
+    }
+
+    .theme-toggle {
+        top: 24px;
+        right: 20px;
+        width: 32px;
+        height: 32px;
+    }
+
+    .cursor-coords {
+        display: none;
+        /* Hide coordinate overlay on mobile since touch manipulation is different */
+    }
+
+    .links {
+        left: 20px;
+        bottom: 24px;
+    }
+
+    .hint {
+        right: 20px;
+        bottom: 26px;
+    }
+
+    .left-rule {
+        left: 12px;
+    }
+}
