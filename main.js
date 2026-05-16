@@ -104,9 +104,7 @@ for (let i = 0; i < starCharSet.length; i++) {
     });
 }
 
-// ==========================================
-// PLANET
-// ==========================================
+// Planet
 const spherePointsCount = 3000;
 const sphereRadius = 2.25;
 const sphereData = {};
@@ -132,9 +130,6 @@ for (let i = 0; i < charSet.length; i++) {
     }
 }
 
-// ==========================================
-// PERFECT CIRCULAR RING SYSTEM 
-// ==========================================
 const ringSpin = new THREE.Group();
 const RING_SPIN = 0.14;
 
@@ -204,6 +199,7 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(techGroup);
 
+// Ring
 const DUST_COUNT = 4500;
 const DUST_INNER = 2.45;
 const DUST_OUTER = 3.9;
@@ -271,10 +267,6 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(dustGroup);
 
-
-// ==========================================
-// MASTER SYSTEM TILT
-// ==========================================
 const systemTilt = new THREE.Group();
 systemTilt.rotation.x = Math.PI / 5.5;
 systemTilt.rotation.z = -Math.PI / 12;
@@ -284,9 +276,7 @@ systemTilt.add(planetSpin);
 systemTilt.add(ringSpin);
 scene.add(systemTilt);
 
-// ==========================================
-// STARFIELD
-// ==========================================
+// Starfield
 const starCount = 2500;
 const starInnerRadius = 7;
 const starOuterRadius = 22;
@@ -314,9 +304,6 @@ for (const ch of starCharSet) {
 }
 scene.add(starGroup);
 
-// ==========================================
-// THEME SWITCH LOGIC
-// ==========================================
 document.getElementById('theme-toggle').addEventListener('click', () => {
     isDarkMode = !isDarkMode;
     colors = getThemeColors();
@@ -348,10 +335,6 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
     }
 });
 
-
-// ==========================================
-// INTERACTION & ANIMATION
-// ==========================================
 let targetPointerX = 0, targetPointerY = 0;
 let pointerX = 0, pointerY = 0;
 let windowHalfX = window.innerWidth / 2;
