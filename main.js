@@ -2,7 +2,6 @@ const NAME = 'haris saif';
 
 document.getElementById('nametext').textContent = NAME.toLowerCase();
 
-// Set default theme state
 let isDarkMode = true;
 
 function getThemeColors() {
@@ -106,7 +105,7 @@ for (let i = 0; i < starCharSet.length; i++) {
 
 // Planet
 const spherePointsCount = 3000;
-const sphereRadius = 2.0; // Scaled down slightly to make room for sweeping rings
+const sphereRadius = 1;
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
@@ -133,7 +132,6 @@ for (let i = 0; i < charSet.length; i++) {
 const ringSpin = new THREE.Group();
 const RING_SPIN = 0.14;
 
-// Spaced out definitions for text rings within the expanded field
 const TECH_RAD_1 = 3.2;
 const TECH_RAD_2 = 4.0;
 const NAV_RADIUS = 4.9;
@@ -200,10 +198,10 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(techGroup);
 
-// Rings Expansion
+// Rings
 const DUST_COUNT = 4500;
-const DUST_INNER = 2.6; // Clear separation from the planet silhouette
-const DUST_OUTER = 5.8; // Sweeps out generously into the background space
+const DUST_INNER = 2.6; 
+const DUST_OUTER = 5.8; 
 const dustData = {};
 for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
 
@@ -229,8 +227,7 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
 
     let density = dRad * dAz;
-
-    // Adjusted carving tolerances to gracefully isolate text elements in the expanded layout
+    
     const carveTech1 = bump(r, TECH_RAD_1, 0.10);
     const carveTech2 = bump(r, TECH_RAD_2, 0.10);
     const carveNav = bump(r, NAV_RADIUS, 0.14);
@@ -344,6 +341,10 @@ let windowHalfX = window.innerWidth / 2;
 let windowHalfY = window.innerHeight / 2;
 let hintDismissed = false;
 
+// Variables to lock relative coordinate offsets after interaction initialization
+let firstMoveRecorded = false;
+let anchorX = 0, anchorY = 0;
+
 const coordsEl = document.getElementById('cursor-coords');
 
 function dismissHint() {
@@ -353,11 +354,19 @@ function dismissHint() {
 }
 
 function setPointer(clientX, clientY) {
-    // Only track cursor inputs once the scene has been revealed
     if (!sceneRevealed) return;
 
-    targetPointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
-    targetPointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
+    if (!firstMoveRecorded) {
+        anchorX = clientX;
+        anchorY = clientY;
+        firstMoveRecorded = true;
+    }
+
+    const deltaX = clientX - anchorX;
+    const deltaY = clientY - anchorY;
+
+    targetPointerX = Math.max(-1, Math.min(1, deltaX / windowHalfX));
+    targetPointerY = Math.max(-1, Math.min(1, deltaY / windowHalfY));
 
     if (coordsEl) {
         const formatCoord = (val) => (val >= 0 ? '+' : '') + val.toFixed(3);
@@ -370,7 +379,6 @@ document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
 
-// Unlock interaction and hide text upon clicking anywhere
 document.addEventListener('click', () => {
     if (!sceneRevealed) {
         sceneRevealed = true;
@@ -396,7 +404,6 @@ function animate() {
     starGroup.rotation.x -= 0.010 * dt;
 
     if (sceneRevealed) {
-        // Only interpolate pointer data once interaction unlocks to prevent jerking
         const pointerK = 1 - Math.exp(-2.5 * dt);
         pointerX += (targetPointerX - pointerX) * pointerK;
         pointerY += (targetPointerY - pointerY) * pointerK;
