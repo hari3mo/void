@@ -60,8 +60,6 @@ function createCharTexture(char, textColor) {
     return texture;
 }
 
-// Planet + ring share this full char set. Glyphs render as opaque, hard-edged
-// ASCII — alphaTest cuts the sprite to a clean 1-bit shape, no blending.
 const materials = {};
 for (let i = 0; i < charSet.length; i++) {
     const char = charSet[i];
@@ -100,8 +98,7 @@ for (let i = 0; i < spherePointsCount; i++) {
     sphereData[randomChar].push(x, y * sphereRadius, z);
 }
 
-// planetSpin rotates; planetTilt holds it at the system tilt — nested groups
-// give a clean single-axis spin instead of a tumble.
+// planetSpin rotates; planetTilt holds it at the system tilt
 const planetSpin = new THREE.Group();
 for (let i = 0; i < charSet.length; i++) {
     const char = charSet[i];
@@ -198,7 +195,6 @@ while (ringPlaced < RING_COUNT && ringGuard < RING_COUNT * 90) {
     const z = Math.sin(theta) * r;
     const y = (Math.random() - 0.5) * RING_THICKNESS * (1.2 - 0.45 * dRad);
 
-    // Local density picks the character: heavier glyph where the ring is denser.
     let b = dRad * (0.5 + 0.5 * dAz);
     b = Math.min(1, Math.max(0, b * (0.78 + Math.random() * 0.44)));
     const gi = Math.min(ringRamp.length - 1,
@@ -222,7 +218,7 @@ ringTilt.add(ringSpin);
 scene.add(ringTilt);
 
 // Starfield
-const starCount = 2000;
+const starCount = 2500;
 const starInnerRadius = 7;
 const starOuterRadius = 22;
 const starData = {};
