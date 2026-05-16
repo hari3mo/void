@@ -92,8 +92,9 @@ body.loaded .left-rule {
 
 .theme-toggle {
     position: fixed;
-    top: 42px;
-    right: 48px;
+    bottom: 42px;
+    /* Placed cleanly in the bottom left corner */
+    left: 48px;
     z-index: 10;
     background: transparent;
     color: var(--fg);
@@ -118,75 +119,20 @@ body.loaded .left-rule {
 
 .cursor-coords {
     position: fixed;
-    top: 53px;
-    right: 104px;
+    top: 46px;
+    /* Moved cleanly back to the upper right corner */
+    right: 48px;
     z-index: 10;
     font-size: 10px;
     letter-spacing: 0.1em;
     opacity: 0.35;
     pointer-events: none;
-}
-
-.links {
-    position: fixed;
-    bottom: 46px;
-    left: 48px;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    pointer-events: none;
-}
-
-.link {
-    pointer-events: auto;
-    width: max-content;
-    display: flex;
-    align-items: baseline;
-    gap: 13px;
-    text-decoration: none;
-    color: var(--fg);
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    transition: transform 0.35s cubic-bezier(.2, .7, .2, 1);
-}
-
-.link-index {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    opacity: 0.35;
-}
-
-.link-label {
-    position: relative;
-    opacity: 0.55;
-    transition: opacity 0.3s ease;
-}
-
-.link-label::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -3px;
-    height: 1px;
-    background: var(--fg);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.32s cubic-bezier(.2, .7, .2, 1);
-}
-
-.link:hover .link-label {
-    opacity: 1;
-}
-
-.link:hover .link-label::after {
-    transform: scaleX(1);
 }
 
 .hint {
     position: fixed;
-    bottom: 48px;
+    bottom: 46px;
+    /* Positioned nicely in the bottom right corner */
     right: 48px;
     z-index: 10;
     font-size: 10px;
@@ -214,21 +160,12 @@ body.hint-dismissed .hint {
     transition: opacity 0.9s ease, transform 0.9s cubic-bezier(.2, .7, .2, 1);
 }
 
-.link {
-    opacity: 0;
-    transition: opacity 0.9s ease, transform 0.35s cubic-bezier(.2, .7, .2, 1);
-}
-
 body.loaded .name,
 body.loaded .tagline,
 body.loaded .intro,
 body.loaded .cursor-coords {
     opacity: 1;
     transform: translateY(0);
-}
-
-body.loaded .link {
-    opacity: 1;
 }
 
 .name {
@@ -247,18 +184,6 @@ body.loaded .link {
     transition-delay: 0.38s;
 }
 
-.links .link:nth-child(1) {
-    transition-delay: 0.42s;
-}
-
-.links .link:nth-child(2) {
-    transition-delay: 0.48s;
-}
-
-.links .link:nth-child(3) {
-    transition-delay: 0.54s;
-}
-
 body.loaded .tagline {
     opacity: 0.55;
 }
@@ -269,38 +194,4 @@ body.loaded .intro {
 
 body.loaded .cursor-coords {
     opacity: 0.35;
-}
-
-@media (max-width: 600px) {
-    .identity {
-        left: 20px;
-        top: 24px;
-        max-width: 200px;
-    }
-
-    .theme-toggle {
-        top: 24px;
-        right: 20px;
-        width: 32px;
-        height: 32px;
-    }
-
-    .cursor-coords {
-        display: none;
-        /* Hide coordinate overlay on mobile since touch manipulation is different */
-    }
-
-    .links {
-        left: 20px;
-        bottom: 24px;
-    }
-
-    .hint {
-        right: 20px;
-        bottom: 26px;
-    }
-
-    .left-rule {
-        left: 12px;
-    }
 }
