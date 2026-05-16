@@ -2,7 +2,6 @@ const NAME = 'haris saif';
 
 document.getElementById('nametext').textContent = NAME.toLowerCase();
 
-// Set default theme state
 let isDarkMode = true;
 
 function getThemeColors() {
@@ -105,7 +104,7 @@ for (let i = 0; i < starCharSet.length; i++) {
 }
 
 // Planet
-const spherePointsCount = 3000;
+const spherePointsCount = 3000;;
 const sphereRadius = 2.25;
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
@@ -244,8 +243,9 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const z = Math.sin(theta) * r;
 
     const thicknessMod = 1.2 - 0.8 * density;
-    const edgeTaper = smoothstep(0.0, 0.2, u) * smoothstep(1.0, 0.8, u);
-    const y = (Math.random() - 0.5) * 0.18 * thicknessMod * edgeTaper;
+    const planetTaper = smoothstep(0.0, 1.0, u);
+
+    const y = (Math.random() - 0.5) * 0.05 * thicknessMod * planetTaper;
 
     let baseBright = Math.pow(density, 0.6);
     let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2;
@@ -355,7 +355,6 @@ function setPointer(clientX, clientY) {
 
     if (coordsEl) {
         const formatCoord = (val) => (val >= 0 ? '+' : '') + val.toFixed(3);
-        // Display -Y so that "up" on the screen is positive mathematically 
         coordsEl.textContent = `X: ${formatCoord(targetPointerX)} | Y: ${formatCoord(-targetPointerY)}`;
     }
 
