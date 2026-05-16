@@ -4,14 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Haris Saif - Home</title>
+    <title>your name</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <div class="nametag">haris saif<span class="cursor">_</span></div>
+    <div id="loader">
+        <div>
+            <div class="loader-bar" id="loader-bar">░░░░░░░░░░░░░░░░░░░░░░</div>
+            <div class="loader-label">loading</div>
+        </div>
+    </div>
+
+    <div class="vignette"></div>
+    <div class="left-rule"></div>
+
+    <header class="identity">
+        <h1 class="name"><span id="nametext"></span><span class="cursor">_</span></h1>
+        <p class="tagline">Data Scientist · san diego</p>
+    </header>
+
+    <nav class="links">
+        <a class="link" href="https://github.com" target="_blank" rel="noopener">
+            <span class="link-index">01</span><span class="link-label">github</span></a>
+        <a class="link" href="#" target="_blank" rel="noopener">
+            <span class="link-index">02</span><span class="link-label">linkedin</span></a>
+        <a class="link" href="mailto:you@example.com">
+            <span class="link-index">03</span><span class="link-label">email</span></a>
+    </nav>
+
+    <div class="hint" id="hint">move cursor to explore</div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="main.js" defer></script>
+    <script src="main.js"></script>
 </body>
 
 </html>
