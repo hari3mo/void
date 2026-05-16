@@ -28,7 +28,7 @@ scene.background = new THREE.Color(colors.bg);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const CAMERA_RADIUS = 9;
-camera.position.set(0, 0, reduceMotion ? CAMERA_RADIUS : 20);  // start zoomed out
+camera.position.set(0, 0, reduceMotion ? CAMERA_RADIUS : 20);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -60,74 +60,12 @@ function createCharTexture(char, textColor) {
     return texture;
 }
 
-const materials = {};
-for (let i = 0; i < charSet.length; i++) {
-    const char = charSet[i];
-    materials[char] = new THREE.PointsMaterial({
-        size: 0.12, map: createCharTexture(char, colors.fg),
-        alphaTest: 0.5
-    });
-}
-
-// Starfield materials
-const starMaterials = {};
-for (let i = 0; i < starCharSet.length; i++) {
-    const char = starCharSet[i];
-    starMaterials[char] = new THREE.PointsMaterial({
-        size: starSizes[char] || 0.10,
-        map: createCharTexture(char, colors.fg),
-        alphaTest: 0.5
-    });
-}
-
-const SYSTEM_TILT = Math.PI / 6; // planet's spin axis and the ring plane use the same angle
-
-// Planet
-const spherePointsCount = 3000;
-const sphereRadius = 2.7; // Reduced from 3
-const sphereData = {};
-for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
-
-for (let i = 0; i < spherePointsCount; i++) {
-    const y = 1 - (i / (spherePointsCount - 1)) * 2;
-    const radiusAtY = Math.sqrt(1 - y * y);
-    const theta = 2.399963229728653 * i;
-    const x = Math.cos(theta) * radiusAtY * sphereRadius;
-    const z = Math.sin(theta) * radiusAtY * sphereRadius;
-    const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
-    sphereData[randomChar].push(x, y * sphereRadius, z);
-}
-
-// planetSpin rotates; planetTilt holds it at the system tilt
-const planetSpin = new THREE.Group();
-for (let i = 0; i < charSet.length; i++) {
-    const char = charSet[i];
-    if (sphereData[char].length > 0) {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(sphereData[char], 3));
-        planetSpin.add(new THREE.Points(geo, materials[char]));
-    }
-}
-const planetTilt = new THREE.Group();
-planetTilt.rotation.x = SYSTEM_TILT;
-planetTilt.add(planetSpin);
-scene.add(planetTilt);
-
-// Ring
-const RING_INNER = 3.75;
-const RING_OUTER = 4.85;
-const RING_COUNT = 2000;
-const RING_THICKNESS = 0.075; // vertical scatter
-const RING_SPIN = 0.14; // rad/s
-
+// Math Utilities for realistic ring density
 const smoothstep = (e0, e1, x) => {
     const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
     return t * t * (3 - 2 * t);
 };
-const bump = (x, c, w) => {
-    const d = (x - c) / w;
-    return Math.exp(-d * d);
-};
+const bump = (x, c, w) => Math.exp(-Math.pow((x - c) / w, 2));
 
 function buildBrightnessRamp(chars) {
     const canvas = document.createElement('canvas');
@@ -151,73 +89,221 @@ function buildBrightnessRamp(chars) {
 }
 const ringRamp = buildBrightnessRamp(charSet);
 
-const ringPhase = Math.random() * Math.PI * 2;
-const azPhaseA = Math.random() * Math.PI * 2;
-const azPhaseB = Math.random() * Math.PI * 2;
-
-function ringRadialDensity(u) {
-    const edge = smoothstep(0.0, 0.09, u) * smoothstep(1.0, 0.88, u);
-    const cassini = 1 - 0.95 * bump(u, 0.62, 0.030);
-    const encke = 1 - 0.80 * bump(u, 0.82, 0.013);
-    const innerGap = 1 - 0.50 * bump(u, 0.28, 0.025);
-    const brightBand = 1 + 0.40 * bump(u, 0.46, 0.13);
-    const r1 = 0.5 + 0.5 * Math.sin(u * 41.0 + ringPhase);
-    const r2 = 0.5 + 0.5 * Math.sin(u * 23.3 + ringPhase * 1.7);
-    const r3 = 0.5 + 0.5 * Math.sin(u * 13.7 + ringPhase * 0.4);
-    const ringlets = 0.62 + 0.38 * (0.50 * r1 + 0.32 * r2 + 0.18 * r3);
-    return Math.min(1, Math.max(0,
-        edge * cassini * encke * innerGap * brightBand * ringlets));
-}
-
-function ringAzimuthalDensity(theta) {
-    const w = 0.5 + 0.5 * (0.6 * Math.sin(2 * theta + azPhaseA) +
-        0.4 * Math.sin(3 * theta + azPhaseB));
-    return 0.82 + 0.18 * Math.min(1, Math.max(0, w));
-}
-
-const ringData = {};
-for (let i = 0; i < charSet.length; i++) ringData[charSet[i]] = [];
-
-const ringR2in = RING_INNER * RING_INNER;
-const ringR2out = RING_OUTER * RING_OUTER;
-let ringPlaced = 0, ringGuard = 0;
-while (ringPlaced < RING_COUNT && ringGuard < RING_COUNT * 90) {
-    ringGuard++;
-    const r = Math.sqrt(ringR2in + Math.random() * (ringR2out - ringR2in));
-    const u = (r - RING_INNER) / (RING_OUTER - RING_INNER);
-    const theta = Math.random() * Math.PI * 2;
-    const dRad = ringRadialDensity(u);
-    const dAz = ringAzimuthalDensity(theta);
-    if (Math.random() > dRad * dAz) continue;
-    ringPlaced++;
-
-    const x = Math.cos(theta) * r;
-    const z = Math.sin(theta) * r;
-    const y = (Math.random() - 0.5) * RING_THICKNESS * (1.2 - 0.45 * dRad);
-
-    let b = dRad * (0.5 + 0.5 * dAz);
-    b = Math.min(1, Math.max(0, b * (0.78 + Math.random() * 0.44)));
-    const gi = Math.min(ringRamp.length - 1,
-        Math.floor(Math.pow(b, 1.1) * ringRamp.length));
-    ringData[ringRamp[gi]].push(x, y, z);
-}
-
-// ringSpin rotates flat in-plane; ringTilt holds the system tilt
-const ringSpin = new THREE.Group();
+const materials = {};
 for (let i = 0; i < charSet.length; i++) {
     const char = charSet[i];
-    if (ringData[char].length > 0) {
+    materials[char] = new THREE.PointsMaterial({
+        size: 0.12, map: createCharTexture(char, colors.fg),
+        alphaTest: 0.5
+    });
+}
+
+const starMaterials = {};
+for (let i = 0; i < starCharSet.length; i++) {
+    const char = starCharSet[i];
+    starMaterials[char] = new THREE.PointsMaterial({
+        size: starSizes[char] || 0.10,
+        map: createCharTexture(char, colors.fg),
+        alphaTest: 0.5
+    });
+}
+
+// ==========================================
+// PLANET
+// ==========================================
+const spherePointsCount = 3000;
+const sphereRadius = 2.25; 
+const sphereData = {};
+for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
+
+for (let i = 0; i < spherePointsCount; i++) {
+    const y = 1 - (i / (spherePointsCount - 1)) * 2;
+    const radiusAtY = Math.sqrt(1 - y * y);
+    const theta = 2.399963229728653 * i;
+    const x = Math.cos(theta) * radiusAtY * sphereRadius;
+    const z = Math.sin(theta) * radiusAtY * sphereRadius;
+    const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
+    sphereData[randomChar].push(x, y * sphereRadius, z);
+}
+
+const planetSpin = new THREE.Group();
+for (let i = 0; i < charSet.length; i++) {
+    const char = charSet[i];
+    if (sphereData[char].length > 0) {
         const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(ringData[char], 3));
-        ringSpin.add(new THREE.Points(geo, materials[char]));
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(sphereData[char], 3));
+        planetSpin.add(new THREE.Points(geo, materials[char]));
     }
 }
-const ringTilt = new THREE.Group();
-ringTilt.rotation.x = SYSTEM_TILT;
-ringTilt.add(ringSpin);
-scene.add(ringTilt);
 
-// Starfield
+// ==========================================
+// PERFECT CIRCULAR RING SYSTEM 
+// ==========================================
+const ringSpin = new THREE.Group();
+const RING_SPIN = 0.14; 
+
+// Tighter Circular Radii (no oval distortion)
+const NAV_RADIUS = 3.6;
+const TECH_RAD_1 = 2.9;
+const TECH_RAD_2 = 3.2;
+
+// 1. Navigation Track
+const navWords = ["projects", "about", "github", "linkedin", "contact"];
+const spacer = "          "; 
+const ringText = navWords.join(spacer) + spacer;
+
+const navData = {};
+for (let i = 0; i < charSet.length; i++) navData[charSet[i]] = [];
+
+for (let i = 0; i < ringText.length; i++) {
+    const char = ringText[i];
+    if (char === ' ') continue;
+    const theta = (i / ringText.length) * Math.PI * 2;
+    
+    // Perfect Circle
+    const x = Math.cos(theta) * NAV_RADIUS;
+    const z = Math.sin(theta) * NAV_RADIUS;
+    
+    if (navData[char]) navData[char].push(x, 0, z);
+}
+
+const navGroup = new THREE.Group();
+for (let i = 0; i < charSet.length; i++) {
+    const char = charSet[i];
+    if (navData[char].length > 0) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(navData[char], 3));
+        navGroup.add(new THREE.Points(geo, materials[char]));
+    }
+}
+ringSpin.add(navGroup);
+
+// 2. Inner Tech tracks
+const techString1 = "mysql rds elasticbeanstalk health data mads ".repeat(3);
+const techString2 = "ucsd cogs109 python syn100 coursewise ".repeat(4);
+
+const techData = {};
+for (let i = 0; i < charSet.length; i++) techData[charSet[i]] = [];
+
+const addTechRing = (str, radius) => {
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (char === ' ') continue;
+        const theta = (i / str.length) * Math.PI * 2;
+        
+        // Perfect Circle
+        const x = Math.cos(theta) * radius;
+        const z = Math.sin(theta) * radius;
+        
+        if (techData[char]) techData[char].push(x, 0, z);
+    }
+};
+
+addTechRing(techString1, TECH_RAD_1);
+addTechRing(techString2, TECH_RAD_2);
+
+const techGroup = new THREE.Group();
+for (let i = 0; i < charSet.length; i++) {
+    const char = charSet[i];
+    if (techData[char].length > 0) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(techData[char], 3));
+        techGroup.add(new THREE.Points(geo, materials[char]));
+    }
+}
+ringSpin.add(techGroup);
+
+// 3. Dense Circular Dust System
+const DUST_COUNT = 4500; 
+const DUST_INNER = 2.45; 
+const DUST_OUTER = 3.9; 
+const dustData = {};
+for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
+
+let placed = 0;
+let attempts = 0;
+
+const phase1 = Math.random() * Math.PI * 2;
+const phase2 = Math.random() * Math.PI * 2;
+
+while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
+    attempts++;
+    const r = DUST_INNER + Math.random() * (DUST_OUTER - DUST_INNER);
+    const u = (r - DUST_INNER) / (DUST_OUTER - DUST_INNER);
+    const theta = Math.random() * Math.PI * 2;
+
+    const edge = smoothstep(0.0, 0.15, u) * smoothstep(1.0, 0.85, u);
+    const cassini = 1 - 0.85 * bump(u, 0.65, 0.035);
+    const encke = 1 - 0.60 * bump(u, 0.88, 0.015);
+    const ringlets = 0.5 + 0.5 * Math.sin(u * 80.0);
+    let dRad = edge * cassini * encke * ringlets;
+
+    const wave1 = Math.sin(3 * theta + phase1 + u * 10); 
+    const wave2 = Math.sin(5 * theta + phase2 - u * 5);
+    const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
+
+    let density = dRad * dAz;
+
+    const carveNav = bump(r, NAV_RADIUS, 0.08);
+    const carveTech1 = bump(r, TECH_RAD_1, 0.06);
+    const carveTech2 = bump(r, TECH_RAD_2, 0.06);
+
+    density *= (1 - 0.95 * carveNav);
+    density *= (1 - 0.85 * carveTech1);
+    density *= (1 - 0.85 * carveTech2);
+
+    density = Math.max(0, density);
+
+    if (Math.random() > density) continue;
+    placed++;
+
+    // Perfect Circle
+    const x = Math.cos(theta) * r;
+    const z = Math.sin(theta) * r;
+    
+    const thicknessMod = 1.2 - 0.8 * density; 
+    const edgeTaper = smoothstep(0.0, 0.2, u) * smoothstep(1.0, 0.8, u);
+    const y = (Math.random() - 0.5) * 0.18 * thicknessMod * edgeTaper;
+
+    let baseBright = Math.pow(density, 0.6); 
+    let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2; 
+    let b = Math.max(0, Math.min(1, baseBright + noise));
+    
+    let bIndex = Math.floor(b * (ringRamp.length - 1));
+
+    const char = ringRamp[bIndex];
+    dustData[char].push(x, y, z);
+}
+
+const dustGroup = new THREE.Group();
+for (let i = 0; i < charSet.length; i++) {
+    const char = charSet[i];
+    if (dustData[char].length > 0) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(dustData[char], 3));
+        dustGroup.add(new THREE.Points(geo, materials[char]));
+    }
+}
+ringSpin.add(dustGroup);
+
+
+// ==========================================
+// MASTER SYSTEM TILT (Restored to previous preferred angle)
+// ==========================================
+const systemTilt = new THREE.Group();
+
+// This diagonal pitch and bank visually creates the natural ellipse from the user's perspective
+systemTilt.rotation.x = Math.PI / 5.5; 
+systemTilt.rotation.z = -Math.PI / 12; 
+systemTilt.rotation.y = 0.1;           
+
+systemTilt.add(planetSpin);
+systemTilt.add(ringSpin);
+scene.add(systemTilt);
+
+// ==========================================
+// STARFIELD
+// ==========================================
 const starCount = 2500;
 const starInnerRadius = 7;
 const starOuterRadius = 22;
@@ -245,7 +331,11 @@ for (const ch of starCharSet) {
 }
 scene.add(starGroup);
 
-let pointerX = 0, pointerY = 0;
+// ==========================================
+// INTERACTION & ANIMATION
+// ==========================================
+let targetPointerX = 0, targetPointerY = 0;
+let pointerX = 0, pointerY = 0; 
 let windowHalfX = window.innerWidth / 2;
 let windowHalfY = window.innerHeight / 2;
 let hintDismissed = false;
@@ -257,8 +347,8 @@ function dismissHint() {
 }
 
 function setPointer(clientX, clientY) {
-    pointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
-    pointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
+    targetPointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
+    targetPointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
     dismissHint();
 }
 
@@ -273,7 +363,6 @@ themeQuery.addEventListener('change', (e) => {
     scene.background.setHex(colors.bg);
     applyCssTheme();
 
-    // Planet + ring materials (the ring shares these)
     for (let i = 0; i < charSet.length; i++) {
         const char = charSet[i];
         const oldMap = materials[char].map;
@@ -281,7 +370,7 @@ themeQuery.addEventListener('change', (e) => {
         materials[char].needsUpdate = true;
         oldMap.dispose();
     }
-    // Starfield materials
+
     for (let i = 0; i < starCharSet.length; i++) {
         const char = starCharSet[i];
         const oldMap = starMaterials[char].map;
@@ -302,17 +391,20 @@ function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    // Spin around its tilted axis
+    // Primary Spin
     planetSpin.rotation.y += PLANET_SPIN * dt * motionScale;
+    ringSpin.rotation.y -= RING_SPIN * dt * motionScale;
 
-    // Spins flat in its own plane
-    ringSpin.rotation.y += RING_SPIN * dt * motionScale;
-
-    // Slow ambient drift
+    // Ambient Star Drift
     starGroup.rotation.y -= 0.025 * dt * motionScale;
     starGroup.rotation.x -= 0.010 * dt * motionScale;
 
-    // Camera easing
+    // Smooth Pointer Catch-up
+    const pointerK = 1 - Math.exp(-2.5 * dt);
+    pointerX += (targetPointerX - pointerX) * pointerK;
+    pointerY += (targetPointerY - pointerY) * pointerK;
+
+    // Camera Easing & Parallax
     if (sceneRevealed) {
         const azimuth = pointerX * MAX_AZIMUTH;
         const elevation = -pointerY * MAX_ELEVATION;
@@ -341,7 +433,7 @@ window.addEventListener('resize', () => {
 });
 
 function finishLoading() {
-    sceneRevealed = true; // releases camera dolly + parallax
+    sceneRevealed = true;
     document.body.classList.add('loaded');
     setTimeout(dismissHint, 6500);
 }
