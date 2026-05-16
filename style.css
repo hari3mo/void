@@ -239,38 +239,6 @@ body.loaded .intro {
     opacity: 0.5;
 }
 
-#loader {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: var(--bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.7s ease;
-}
-
-body.loaded #loader {
-    opacity: 0;
-    pointer-events: none;
-}
-
-.loader-bar {
-    font-size: 13px;
-    letter-spacing: 2px;
-    white-space: pre;
-    color: var(--fg);
-}
-
-.loader-label {
-    margin-top: 15px;
-    font-size: 9.5px;
-    letter-spacing: 0.34em;
-    text-transform: uppercase;
-    text-align: center;
-    opacity: 0.4;
-}
-
 @media (prefers-reduced-motion: reduce) {
     .cursor {
         animation: none;

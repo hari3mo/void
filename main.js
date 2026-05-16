@@ -32,8 +32,7 @@ scene.fog = new THREE.FogExp2(colors.bg, 0.022);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const CAMERA_RADIUS = 9;
-// Start wide for the intro dolly
-camera.position.set(0, 0, reduceMotion ? CAMERA_RADIUS : 14);
+camera.position.set(0, 0, reduceMotion ? CAMERA_RADIUS : 20);  // start zoomed out
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -292,30 +291,11 @@ window.addEventListener('resize', () => {
     windowHalfY = window.innerHeight / 2;
 });
 
-const BAR_LEN = 22;
-const loaderBar = document.getElementById('loader-bar');
-let loadProgress = 0;
-
-function tickLoader() {
-    loadProgress += 0.018; // ~0.9s fill at 60fps
-    const filled = Math.min(BAR_LEN, Math.round(loadProgress * BAR_LEN));
-    loaderBar.textContent = '█'.repeat(filled) + '░'.repeat(BAR_LEN - filled);
-    if (loadProgress < 1) {
-        requestAnimationFrame(tickLoader);
-    } else {
-        finishLoading();
-    }
-}
-
 function finishLoading() {
     sceneRevealed = true; // releases camera dolly + parallax
     document.body.classList.add('loaded');
     setTimeout(dismissHint, 6500);
-    setTimeout(() => {
-        const l = document.getElementById('loader');
-        if (l) l.remove();
-    }, 900);
 }
 
 animate();
-requestAnimationFrame(tickLoader);
+finishLoading();
