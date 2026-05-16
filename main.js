@@ -2,11 +2,8 @@ const NAME = 'haris saif';
 
 document.getElementById('nametext').textContent = NAME.toLowerCase();
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const motionScale = reduceMotion ? 0 : 1;
-
-const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-let isDarkMode = themeQuery.matches;
+// Set default theme state
+let isDarkMode = true;
 
 function getThemeColors() {
     return {
@@ -28,7 +25,7 @@ scene.background = new THREE.Color(colors.bg);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const CAMERA_RADIUS = 9;
-camera.position.set(0, 0, reduceMotion ? CAMERA_RADIUS : 20);
+camera.position.set(0, 0, 20);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -60,7 +57,6 @@ function createCharTexture(char, textColor) {
     return texture;
 }
 
-// Math Utilities for realistic ring density
 const smoothstep = (e0, e1, x) => {
     const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
     return t * t * (3 - 2 * t);
@@ -112,7 +108,7 @@ for (let i = 0; i < starCharSet.length; i++) {
 // PLANET
 // ==========================================
 const spherePointsCount = 3000;
-const sphereRadius = 2.25; 
+const sphereRadius = 2.25;
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
@@ -140,16 +136,14 @@ for (let i = 0; i < charSet.length; i++) {
 // PERFECT CIRCULAR RING SYSTEM 
 // ==========================================
 const ringSpin = new THREE.Group();
-const RING_SPIN = 0.14; 
+const RING_SPIN = 0.14;
 
-// Tighter Circular Radii (no oval distortion)
 const NAV_RADIUS = 3.6;
 const TECH_RAD_1 = 2.9;
 const TECH_RAD_2 = 3.2;
 
-// 1. Navigation Track
 const navWords = ["projects", "about", "github", "linkedin", "contact"];
-const spacer = "          "; 
+const spacer = "          ";
 const ringText = navWords.join(spacer) + spacer;
 
 const navData = {};
@@ -159,11 +153,10 @@ for (let i = 0; i < ringText.length; i++) {
     const char = ringText[i];
     if (char === ' ') continue;
     const theta = (i / ringText.length) * Math.PI * 2;
-    
-    // Perfect Circle
+
     const x = Math.cos(theta) * NAV_RADIUS;
     const z = Math.sin(theta) * NAV_RADIUS;
-    
+
     if (navData[char]) navData[char].push(x, 0, z);
 }
 
@@ -178,7 +171,6 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(navGroup);
 
-// 2. Inner Tech tracks
 const techString1 = "mysql rds elasticbeanstalk health data mads ".repeat(3);
 const techString2 = "ucsd cogs109 python syn100 coursewise ".repeat(4);
 
@@ -190,11 +182,10 @@ const addTechRing = (str, radius) => {
         const char = str[i];
         if (char === ' ') continue;
         const theta = (i / str.length) * Math.PI * 2;
-        
-        // Perfect Circle
+
         const x = Math.cos(theta) * radius;
         const z = Math.sin(theta) * radius;
-        
+
         if (techData[char]) techData[char].push(x, 0, z);
     }
 };
@@ -213,16 +204,14 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(techGroup);
 
-// 3. Dense Circular Dust System
-const DUST_COUNT = 4500; 
-const DUST_INNER = 2.45; 
-const DUST_OUTER = 3.9; 
+const DUST_COUNT = 4500;
+const DUST_INNER = 2.45;
+const DUST_OUTER = 3.9;
 const dustData = {};
 for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
 
 let placed = 0;
 let attempts = 0;
-
 const phase1 = Math.random() * Math.PI * 2;
 const phase2 = Math.random() * Math.PI * 2;
 
@@ -238,12 +227,11 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const ringlets = 0.5 + 0.5 * Math.sin(u * 80.0);
     let dRad = edge * cassini * encke * ringlets;
 
-    const wave1 = Math.sin(3 * theta + phase1 + u * 10); 
+    const wave1 = Math.sin(3 * theta + phase1 + u * 10);
     const wave2 = Math.sin(5 * theta + phase2 - u * 5);
     const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
 
     let density = dRad * dAz;
-
     const carveNav = bump(r, NAV_RADIUS, 0.08);
     const carveTech1 = bump(r, TECH_RAD_1, 0.06);
     const carveTech2 = bump(r, TECH_RAD_2, 0.06);
@@ -251,26 +239,23 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     density *= (1 - 0.95 * carveNav);
     density *= (1 - 0.85 * carveTech1);
     density *= (1 - 0.85 * carveTech2);
-
     density = Math.max(0, density);
 
     if (Math.random() > density) continue;
     placed++;
 
-    // Perfect Circle
     const x = Math.cos(theta) * r;
     const z = Math.sin(theta) * r;
-    
-    const thicknessMod = 1.2 - 0.8 * density; 
+
+    const thicknessMod = 1.2 - 0.8 * density;
     const edgeTaper = smoothstep(0.0, 0.2, u) * smoothstep(1.0, 0.8, u);
     const y = (Math.random() - 0.5) * 0.18 * thicknessMod * edgeTaper;
 
-    let baseBright = Math.pow(density, 0.6); 
-    let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2; 
+    let baseBright = Math.pow(density, 0.6);
+    let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2;
     let b = Math.max(0, Math.min(1, baseBright + noise));
-    
-    let bIndex = Math.floor(b * (ringRamp.length - 1));
 
+    let bIndex = Math.floor(b * (ringRamp.length - 1));
     const char = ringRamp[bIndex];
     dustData[char].push(x, y, z);
 }
@@ -288,14 +273,12 @@ ringSpin.add(dustGroup);
 
 
 // ==========================================
-// MASTER SYSTEM TILT (Restored to previous preferred angle)
+// MASTER SYSTEM TILT
 // ==========================================
 const systemTilt = new THREE.Group();
-
-// This diagonal pitch and bank visually creates the natural ellipse from the user's perspective
-systemTilt.rotation.x = Math.PI / 5.5; 
-systemTilt.rotation.z = -Math.PI / 12; 
-systemTilt.rotation.y = 0.1;           
+systemTilt.rotation.x = Math.PI / 5.5;
+systemTilt.rotation.z = -Math.PI / 12;
+systemTilt.rotation.y = 0.1;
 
 systemTilt.add(planetSpin);
 systemTilt.add(ringSpin);
@@ -332,36 +315,21 @@ for (const ch of starCharSet) {
 scene.add(starGroup);
 
 // ==========================================
-// INTERACTION & ANIMATION
+// THEME SWITCH LOGIC
 // ==========================================
-let targetPointerX = 0, targetPointerY = 0;
-let pointerX = 0, pointerY = 0; 
-let windowHalfX = window.innerWidth / 2;
-let windowHalfY = window.innerHeight / 2;
-let hintDismissed = false;
-
-function dismissHint() {
-    if (hintDismissed) return;
-    hintDismissed = true;
-    document.body.classList.add('hint-dismissed');
-}
-
-function setPointer(clientX, clientY) {
-    targetPointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
-    targetPointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
-    dismissHint();
-}
-
-document.addEventListener('mousemove', (e) => setPointer(e.clientX, e.clientY));
-document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
-}, { passive: true });
-
-themeQuery.addEventListener('change', (e) => {
-    isDarkMode = e.matches;
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    isDarkMode = !isDarkMode;
     colors = getThemeColors();
     scene.background.setHex(colors.bg);
     applyCssTheme();
+
+    if (isDarkMode) {
+        document.getElementById('icon-sun').style.display = 'block';
+        document.getElementById('icon-moon').style.display = 'none';
+    } else {
+        document.getElementById('icon-sun').style.display = 'none';
+        document.getElementById('icon-moon').style.display = 'block';
+    }
 
     for (let i = 0; i < charSet.length; i++) {
         const char = charSet[i];
@@ -380,6 +348,42 @@ themeQuery.addEventListener('change', (e) => {
     }
 });
 
+
+// ==========================================
+// INTERACTION & ANIMATION
+// ==========================================
+let targetPointerX = 0, targetPointerY = 0;
+let pointerX = 0, pointerY = 0;
+let windowHalfX = window.innerWidth / 2;
+let windowHalfY = window.innerHeight / 2;
+let hintDismissed = false;
+
+const coordsEl = document.getElementById('cursor-coords');
+
+function dismissHint() {
+    if (hintDismissed) return;
+    hintDismissed = true;
+    document.body.classList.add('hint-dismissed');
+}
+
+function setPointer(clientX, clientY) {
+    targetPointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
+    targetPointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
+
+    if (coordsEl) {
+        const formatCoord = (val) => (val >= 0 ? '+' : '') + val.toFixed(3);
+        // Display -Y so that "up" on the screen is positive mathematically 
+        coordsEl.textContent = `X: ${formatCoord(targetPointerX)} | Y: ${formatCoord(-targetPointerY)}`;
+    }
+
+    dismissHint();
+}
+
+document.addEventListener('mousemove', (e) => setPointer(e.clientX, e.clientY));
+document.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+
 const clock = new THREE.Clock();
 const MAX_AZIMUTH = 0.30;
 const MAX_ELEVATION = 0.22;
@@ -391,24 +395,20 @@ function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    // Primary Spin
-    planetSpin.rotation.y += PLANET_SPIN * dt * motionScale;
-    ringSpin.rotation.y -= RING_SPIN * dt * motionScale;
+    planetSpin.rotation.y += PLANET_SPIN * dt;
+    ringSpin.rotation.y -= RING_SPIN * dt;
 
-    // Ambient Star Drift
-    starGroup.rotation.y -= 0.025 * dt * motionScale;
-    starGroup.rotation.x -= 0.010 * dt * motionScale;
+    starGroup.rotation.y -= 0.025 * dt;
+    starGroup.rotation.x -= 0.010 * dt;
 
-    // Smooth Pointer Catch-up
     const pointerK = 1 - Math.exp(-2.5 * dt);
     pointerX += (targetPointerX - pointerX) * pointerK;
     pointerY += (targetPointerY - pointerY) * pointerK;
 
-    // Camera Easing & Parallax
     if (sceneRevealed) {
         const azimuth = pointerX * MAX_AZIMUTH;
         const elevation = -pointerY * MAX_ELEVATION;
-        
+
         const cosE = Math.cos(elevation);
         const desiredX = CAMERA_RADIUS * Math.sin(azimuth) * cosE;
         const desiredY = CAMERA_RADIUS * Math.sin(elevation);
