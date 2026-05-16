@@ -106,7 +106,7 @@ for (let i = 0; i < starCharSet.length; i++) {
 
 // Planet
 const spherePointsCount = 3000;
-const sphereRadius = 2.25;
+const sphereRadius = 2.0; // Scaled down slightly to make room for sweeping rings
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
@@ -133,9 +133,10 @@ for (let i = 0; i < charSet.length; i++) {
 const ringSpin = new THREE.Group();
 const RING_SPIN = 0.14;
 
-const NAV_RADIUS = 3.6;
-const TECH_RAD_1 = 2.9;
-const TECH_RAD_2 = 3.2;
+// Spaced out definitions for text rings within the expanded field
+const TECH_RAD_1 = 3.2;
+const TECH_RAD_2 = 4.0;
+const NAV_RADIUS = 4.9;
 
 const navWords = ["projects", "about", "github", "linkedin", "contact"];
 const spacer = "          ";
@@ -199,10 +200,10 @@ for (let i = 0; i < charSet.length; i++) {
 }
 ringSpin.add(techGroup);
 
-// Ring
+// Rings Expansion
 const DUST_COUNT = 4500;
-const DUST_INNER = 2.45;
-const DUST_OUTER = 3.9;
+const DUST_INNER = 2.6; // Clear separation from the planet silhouette
+const DUST_OUTER = 5.8; // Sweeps out generously into the background space
 const dustData = {};
 for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
 
@@ -228,13 +229,15 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
 
     let density = dRad * dAz;
-    const carveNav = bump(r, NAV_RADIUS, 0.08);
-    const carveTech1 = bump(r, TECH_RAD_1, 0.06);
-    const carveTech2 = bump(r, TECH_RAD_2, 0.06);
 
-    density *= (1 - 0.95 * carveNav);
+    // Adjusted carving tolerances to gracefully isolate text elements in the expanded layout
+    const carveTech1 = bump(r, TECH_RAD_1, 0.10);
+    const carveTech2 = bump(r, TECH_RAD_2, 0.10);
+    const carveNav = bump(r, NAV_RADIUS, 0.14);
+
     density *= (1 - 0.85 * carveTech1);
     density *= (1 - 0.85 * carveTech2);
+    density *= (1 - 0.95 * carveNav);
     density = Math.max(0, density);
 
     if (Math.random() > density) continue;
@@ -350,6 +353,9 @@ function dismissHint() {
 }
 
 function setPointer(clientX, clientY) {
+    // Only track cursor inputs once the scene has been revealed
+    if (!sceneRevealed) return;
+
     targetPointerX = Math.max(-1, Math.min(1, (clientX - windowHalfX) / windowHalfX));
     targetPointerY = Math.max(-1, Math.min(1, (clientY - windowHalfY) / windowHalfY));
 
