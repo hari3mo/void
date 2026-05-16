@@ -2,6 +2,7 @@ const NAME = 'haris saif';
 
 document.getElementById('nametext').textContent = NAME.toLowerCase();
 
+// Set default theme state
 let isDarkMode = true;
 
 function getThemeColors() {
@@ -23,8 +24,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(colors.bg);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const CAMERA_RADIUS = 9;
-camera.position.set(0, 0, 20);
+const CAMERA_RADIUS = 12;
+camera.position.set(0, 0, CAMERA_RADIUS);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -104,7 +105,7 @@ for (let i = 0; i < starCharSet.length; i++) {
 }
 
 // Planet
-const spherePointsCount = 3000;;
+const spherePointsCount = 3000;
 const sphereRadius = 2.25;
 const sphereData = {};
 for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
@@ -243,9 +244,8 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const z = Math.sin(theta) * r;
 
     const thicknessMod = 1.2 - 0.8 * density;
-    const planetTaper = smoothstep(0.0, 1.0, u);
-
-    const y = (Math.random() - 0.5) * 0.05 * thicknessMod * planetTaper;
+    const edgeTaper = smoothstep(0.0, 0.2, u) * smoothstep(1.0, 0.8, u);
+    const y = (Math.random() - 0.5) * 0.18 * thicknessMod * edgeTaper;
 
     let baseBright = Math.pow(density, 0.6);
     let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2;
@@ -357,14 +357,20 @@ function setPointer(clientX, clientY) {
         const formatCoord = (val) => (val >= 0 ? '+' : '') + val.toFixed(3);
         coordsEl.textContent = `X: ${formatCoord(targetPointerX)} | Y: ${formatCoord(-targetPointerY)}`;
     }
-
-    dismissHint();
 }
 
 document.addEventListener('mousemove', (e) => setPointer(e.clientX, e.clientY));
 document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
+
+// Unlock interaction and hide text upon clicking anywhere
+document.addEventListener('click', () => {
+    if (!sceneRevealed) {
+        sceneRevealed = true;
+        dismissHint();
+    }
+});
 
 const clock = new THREE.Clock();
 const MAX_AZIMUTH = 0.30;
@@ -383,11 +389,12 @@ function animate() {
     starGroup.rotation.y -= 0.025 * dt;
     starGroup.rotation.x -= 0.010 * dt;
 
-    const pointerK = 1 - Math.exp(-2.5 * dt);
-    pointerX += (targetPointerX - pointerX) * pointerK;
-    pointerY += (targetPointerY - pointerY) * pointerK;
-
     if (sceneRevealed) {
+        // Only interpolate pointer data once interaction unlocks to prevent jerking
+        const pointerK = 1 - Math.exp(-2.5 * dt);
+        pointerX += (targetPointerX - pointerX) * pointerK;
+        pointerY += (targetPointerY - pointerY) * pointerK;
+
         const azimuth = pointerX * MAX_AZIMUTH;
         const elevation = -pointerY * MAX_ELEVATION;
 
@@ -415,9 +422,7 @@ window.addEventListener('resize', () => {
 });
 
 function finishLoading() {
-    sceneRevealed = true;
     document.body.classList.add('loaded');
-    setTimeout(dismissHint, 6500);
 }
 
 animate();
