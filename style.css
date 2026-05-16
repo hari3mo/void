@@ -2,7 +2,6 @@
 body {
     --fg: #ffffff;
     --bg: #030305;
-    --vignette: rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -25,16 +24,6 @@ body {
 
 canvas {
     display: block;
-}
-
-.vignette {
-    position: fixed;
-    inset: 0;
-    z-index: 5;
-    pointer-events: none;
-    background: radial-gradient(ellipse 78% 76% at 50% 44%,
-            transparent 38%, var(--vignette) 100%);
-    transition: background 0.4s ease;
 }
 
 .left-rule {

@@ -12,9 +12,7 @@ function getThemeColors() {
     return {
         bg: isDarkMode ? 0x030305 : 0xffffff,
         fg: isDarkMode ? '#ffffff' : '#000000',
-        cssBg: isDarkMode ? '#030305' : '#ffffff',
-        vignette: isDarkMode ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.6)',
-        blending: isDarkMode ? THREE.AdditiveBlending : THREE.NormalBlending
+        cssBg: isDarkMode ? '#030305' : '#ffffff'
     };
 }
 let colors = getThemeColors();
@@ -22,13 +20,11 @@ let colors = getThemeColors();
 function applyCssTheme() {
     document.body.style.setProperty('--fg', colors.fg);
     document.body.style.setProperty('--bg', colors.cssBg);
-    document.body.style.setProperty('--vignette', colors.vignette);
 }
 applyCssTheme();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(colors.bg);
-scene.fog = new THREE.FogExp2(colors.bg, 0.022);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const CAMERA_RADIUS = 9;
@@ -64,14 +60,14 @@ function createCharTexture(char, textColor) {
     return texture;
 }
 
-// Planet + ring share this full char set
+// Planet + ring share this full char set. Glyphs render as opaque, hard-edged
+// ASCII — alphaTest cuts the sprite to a clean 1-bit shape, no blending.
 const materials = {};
 for (let i = 0; i < charSet.length; i++) {
     const char = charSet[i];
     materials[char] = new THREE.PointsMaterial({
         size: 0.12, map: createCharTexture(char, colors.fg),
-        transparent: true, alphaTest: 0.1,
-        blending: colors.blending, depthWrite: false
+        alphaTest: 0.5
     });
 }
 
@@ -82,8 +78,7 @@ for (let i = 0; i < starCharSet.length; i++) {
     starMaterials[char] = new THREE.PointsMaterial({
         size: starSizes[char] || 0.10,
         map: createCharTexture(char, colors.fg),
-        transparent: true, opacity: 0.75,
-        blending: colors.blending, depthWrite: false
+        alphaTest: 0.5
     });
 }
 
@@ -122,33 +117,93 @@ planetTilt.add(planetSpin);
 scene.add(planetTilt);
 
 // Ring
-const RING_INNER = 3.825; // Reduced from 4.25
-const RING_OUTER = 4.365; // Reduced from 4.85
+const RING_INNER = 3.75;
+const RING_OUTER = 4.85;
 const RING_COUNT = 2000;
-const RING_THICKNESS = 0.08; // slight vertical scatter
+const RING_THICKNESS = 0.075; // vertical scatter
 const RING_SPIN = 0.14; // rad/s
 
-const ringAmp = 0.18;
+const smoothstep = (e0, e1, x) => {
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+};
+const bump = (x, c, w) => {
+    const d = (x - c) / w;
+    return Math.exp(-d * d);
+};
+
+function buildBrightnessRamp(chars) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 24px "Courier New", Courier, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const ink = {};
+    for (const ch of chars) {
+        ctx.clearRect(0, 0, 32, 32);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(ch, 16, 16);
+        const px = ctx.getImageData(0, 0, 32, 32).data;
+        let sum = 0;
+        for (let p = 3; p < px.length; p += 4) sum += px[p];
+        ink[ch] = sum;
+    }
+    return chars.split('').sort((a, b) => ink[a] - ink[b]);
+}
+const ringRamp = buildBrightnessRamp(charSet);
+
 const ringPhase = Math.random() * Math.PI * 2;
-const ringDMax = 1 + ringAmp;
-const ringDensity = (t) => 1 + ringAmp * Math.sin(2 * t + ringPhase);
+const azPhaseA = Math.random() * Math.PI * 2;
+const azPhaseB = Math.random() * Math.PI * 2;
+
+function ringRadialDensity(u) {
+    const edge = smoothstep(0.0, 0.09, u) * smoothstep(1.0, 0.88, u);
+    const cassini = 1 - 0.95 * bump(u, 0.62, 0.030);
+    const encke = 1 - 0.80 * bump(u, 0.82, 0.013);
+    const innerGap = 1 - 0.50 * bump(u, 0.28, 0.025);
+    const brightBand = 1 + 0.40 * bump(u, 0.46, 0.13);
+    const r1 = 0.5 + 0.5 * Math.sin(u * 41.0 + ringPhase);
+    const r2 = 0.5 + 0.5 * Math.sin(u * 23.3 + ringPhase * 1.7);
+    const r3 = 0.5 + 0.5 * Math.sin(u * 13.7 + ringPhase * 0.4);
+    const ringlets = 0.62 + 0.38 * (0.50 * r1 + 0.32 * r2 + 0.18 * r3);
+    return Math.min(1, Math.max(0,
+        edge * cassini * encke * innerGap * brightBand * ringlets));
+}
+
+function ringAzimuthalDensity(theta) {
+    const w = 0.5 + 0.5 * (0.6 * Math.sin(2 * theta + azPhaseA) +
+        0.4 * Math.sin(3 * theta + azPhaseB));
+    return 0.82 + 0.18 * Math.min(1, Math.max(0, w));
+}
 
 const ringData = {};
 for (let i = 0; i < charSet.length; i++) ringData[charSet[i]] = [];
 
 const ringR2in = RING_INNER * RING_INNER;
 const ringR2out = RING_OUTER * RING_OUTER;
-for (let i = 0; i < RING_COUNT; i++) {
+let ringPlaced = 0, ringGuard = 0;
+while (ringPlaced < RING_COUNT && ringGuard < RING_COUNT * 90) {
+    ringGuard++;
     const r = Math.sqrt(ringR2in + Math.random() * (ringR2out - ringR2in));
-    let theta;
-    do {
-        theta = Math.random() * Math.PI * 2;
-    } while (Math.random() > ringDensity(theta) / ringDMax);
+    const u = (r - RING_INNER) / (RING_OUTER - RING_INNER);
+    const theta = Math.random() * Math.PI * 2;
+    const dRad = ringRadialDensity(u);
+    const dAz = ringAzimuthalDensity(theta);
+    if (Math.random() > dRad * dAz) continue;
+    ringPlaced++;
+
     const x = Math.cos(theta) * r;
     const z = Math.sin(theta) * r;
-    const y = (Math.random() - 0.5) * RING_THICKNESS;
-    const ch = charSet[Math.floor(Math.random() * charSet.length)];
-    ringData[ch].push(x, y, z);
+    const y = (Math.random() - 0.5) * RING_THICKNESS * (1.2 - 0.45 * dRad);
+
+    // Local density picks the character: heavier glyph where the ring is denser.
+    let b = dRad * (0.5 + 0.5 * dAz);
+    b = Math.min(1, Math.max(0, b * (0.78 + Math.random() * 0.44)));
+    const gi = Math.min(ringRamp.length - 1,
+        Math.floor(Math.pow(b, 1.1) * ringRamp.length));
+    ringData[ringRamp[gi]].push(x, y, z);
 }
 
 // ringSpin rotates flat in-plane; ringTilt holds the system tilt
@@ -167,7 +222,7 @@ ringTilt.add(ringSpin);
 scene.add(ringTilt);
 
 // Starfield
-const starCount = 8500;
+const starCount = 2000;
 const starInnerRadius = 7;
 const starOuterRadius = 22;
 const starData = {};
@@ -220,15 +275,13 @@ themeQuery.addEventListener('change', (e) => {
     isDarkMode = e.matches;
     colors = getThemeColors();
     scene.background.setHex(colors.bg);
-    scene.fog.color.setHex(colors.bg);
     applyCssTheme();
 
-    // Planet + ring materials
+    // Planet + ring materials (the ring shares these)
     for (let i = 0; i < charSet.length; i++) {
         const char = charSet[i];
         const oldMap = materials[char].map;
         materials[char].map = createCharTexture(char, colors.fg);
-        materials[char].blending = colors.blending;
         materials[char].needsUpdate = true;
         oldMap.dispose();
     }
@@ -237,7 +290,6 @@ themeQuery.addEventListener('change', (e) => {
         const char = starCharSet[i];
         const oldMap = starMaterials[char].map;
         starMaterials[char].map = createCharTexture(char, colors.fg);
-        starMaterials[char].blending = colors.blending;
         starMaterials[char].needsUpdate = true;
         oldMap.dispose();
     }
@@ -254,13 +306,13 @@ function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    // Planet — spin around its tilted axis
+    // Spin around its tilted axis
     planetSpin.rotation.y += PLANET_SPIN * dt * motionScale;
 
-    // Ring — spins flat in its own plane
+    // Spins flat in its own plane
     ringSpin.rotation.y += RING_SPIN * dt * motionScale;
 
-    // Starfield — slow ambient drift
+    // Slow ambient drift
     starGroup.rotation.y -= 0.025 * dt * motionScale;
     starGroup.rotation.x -= 0.010 * dt * motionScale;
 
@@ -268,6 +320,7 @@ function animate() {
     if (sceneRevealed) {
         const azimuth = pointerX * MAX_AZIMUTH;
         const elevation = -pointerY * MAX_ELEVATION;
+        
         const cosE = Math.cos(elevation);
         const desiredX = CAMERA_RADIUS * Math.sin(azimuth) * cosE;
         const desiredY = CAMERA_RADIUS * Math.sin(elevation);
