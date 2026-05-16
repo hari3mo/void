@@ -24,7 +24,10 @@ scene.background = new THREE.Color(colors.bg);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const CAMERA_RADIUS = 12;
-camera.position.set(0, 0, CAMERA_RADIUS);
+
+// Start the camera far away and slightly offset on the X/Y axes 
+// to create a subtle panning depth effect on load
+camera.position.set(4, 3, 50);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -103,38 +106,66 @@ for (let i = 0; i < starCharSet.length; i++) {
     });
 }
 
-// Planet
-const spherePointsCount = 3000;
-const sphereRadius = 1;
-const sphereData = {};
-for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
-for (let i = 0; i < spherePointsCount; i++) {
-    const y = 1 - (i / (spherePointsCount - 1)) * 2;
-    const radiusAtY = Math.sqrt(1 - y * y);
-    const theta = 2.399963229728653 * i;
-    const x = Math.cos(theta) * radiusAtY * sphereRadius;
-    const z = Math.sin(theta) * radiusAtY * sphereRadius;
-    const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
-    sphereData[randomChar].push(x, y * sphereRadius, z);
-}
+function createAsciiSphere(pointsCount, radius, targetWord) {
+    const sphereData = {};
+    for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
 
-const planetSpin = new THREE.Group();
-for (let i = 0; i < charSet.length; i++) {
-    const char = charSet[i];
-    if (sphereData[char].length > 0) {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(sphereData[char], 3));
-        planetSpin.add(new THREE.Points(geo, materials[char]));
+    const allowedChars = targetWord ? targetWord.toLowerCase().replace(/\s+/g, '') : charSet;
+
+    for (let i = 0; i < pointsCount; i++) {
+        const y = 1 - (i / (pointsCount - 1)) * 2;
+        const radiusAtY = Math.sqrt(1 - y * y);
+        const theta = 2.399963229728653 * i;
+        const x = Math.cos(theta) * radiusAtY * radius;
+        const z = Math.sin(theta) * radiusAtY * radius;
+
+        const randomChar = allowedChars[Math.floor(Math.random() * allowedChars.length)];
+        if (sphereData[randomChar]) {
+            sphereData[randomChar].push(x, y * radius, z);
+        }
     }
+
+    const sphereGroup = new THREE.Group();
+    for (let i = 0; i < charSet.length; i++) {
+        const char = charSet[i];
+        if (sphereData[char].length > 0) {
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(sphereData[char], 3));
+            sphereGroup.add(new THREE.Points(geo, materials[char]));
+        }
+    }
+    return sphereGroup;
 }
+
+// Central Sun Placeholder
+const planetSpin = new THREE.Group();
+const sun = createAsciiSphere(3000, 1.0);
+planetSpin.add(sun);
 
 const ringSpin = new THREE.Group();
 const RING_SPIN = 0.14;
 
 const TECH_RAD_1 = 3.2;
 const TECH_RAD_2 = 4.0;
+const ORBIT_RADIUS = 4.45; // Orbital track path for the placeholder planets
 const NAV_RADIUS = 4.9;
+
+// Instantiate the 4 planets with unique link character pools
+const orbitingPlanets = [];
+const planetLabels = ['me', 'github', 'linkedin', 'email'];
+
+for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const planetPlaceholder = createAsciiSphere(380, 0.24, planetLabels[i]);
+    planetPlaceholder.position.set(
+        Math.cos(angle) * ORBIT_RADIUS,
+        0,
+        Math.sin(angle) * ORBIT_RADIUS
+    );
+    ringSpin.add(planetPlaceholder);
+    orbitingPlanets.push(planetPlaceholder);
+}
 
 const navWords = ["projects", "about", "github", "linkedin", "contact"];
 const spacer = "          ";
@@ -200,8 +231,8 @@ ringSpin.add(techGroup);
 
 // Rings
 const DUST_COUNT = 4500;
-const DUST_INNER = 2.6; 
-const DUST_OUTER = 5.8; 
+const DUST_INNER = 2.6;
+const DUST_OUTER = 5.8;
 const dustData = {};
 for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
 
@@ -227,13 +258,15 @@ while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
 
     let density = dRad * dAz;
-    
+
     const carveTech1 = bump(r, TECH_RAD_1, 0.10);
     const carveTech2 = bump(r, TECH_RAD_2, 0.10);
+    const carvePlanets = bump(r, ORBIT_RADIUS, 0.12); // Carves a lane for the planets
     const carveNav = bump(r, NAV_RADIUS, 0.14);
 
     density *= (1 - 0.85 * carveTech1);
     density *= (1 - 0.85 * carveTech2);
+    density *= (1 - 0.90 * carvePlanets);
     density *= (1 - 0.95 * carveNav);
     density = Math.max(0, density);
 
@@ -400,6 +433,11 @@ function animate() {
     planetSpin.rotation.y += PLANET_SPIN * dt;
     ringSpin.rotation.y -= RING_SPIN * dt;
 
+    // Spin each placeholder planet on its individual local axis
+    orbitingPlanets.forEach((planet, index) => {
+        planet.rotation.y += (0.2 + index * 0.05) * dt;
+    });
+
     starGroup.rotation.y -= 0.025 * dt;
     starGroup.rotation.x -= 0.010 * dt;
 
@@ -420,6 +458,14 @@ function animate() {
         camera.position.x += (desiredX - camera.position.x) * k;
         camera.position.y += (desiredY - camera.position.y) * k;
         camera.position.z += (desiredZ - camera.position.z) * k;
+    } else {
+        // High-velocity snap intro effect
+        const introSpeed = 3.5;
+        const k = 1 - Math.exp(-introSpeed * dt);
+
+        camera.position.x += (0 - camera.position.x) * k;
+        camera.position.y += (0 - camera.position.y) * k;
+        camera.position.z += (CAMERA_RADIUS - camera.position.z) * k;
     }
     camera.lookAt(scene.position);
 
