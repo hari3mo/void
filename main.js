@@ -63,7 +63,6 @@ const smoothstep = (e0, e1, x) => {
     const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
     return t * t * (3 - 2 * t);
 };
-const bump = (x, c, w) => Math.exp(-Math.pow((x - c) / w, 2));
 
 function buildBrightnessRamp(chars) {
     const canvas = document.createElement('canvas');
@@ -106,12 +105,9 @@ for (let i = 0; i < starCharSet.length; i++) {
     });
 }
 
-
-function createAsciiSphere(pointsCount, radius, targetWord) {
+function createAsciiSphere(pointsCount, radius) {
     const sphereData = {};
     for (let i = 0; i < charSet.length; i++) sphereData[charSet[i]] = [];
-
-    const allowedChars = targetWord ? targetWord.toLowerCase().replace(/\s+/g, '') : charSet;
 
     for (let i = 0; i < pointsCount; i++) {
         const y = 1 - (i / (pointsCount - 1)) * 2;
@@ -119,11 +115,8 @@ function createAsciiSphere(pointsCount, radius, targetWord) {
         const theta = 2.399963229728653 * i;
         const x = Math.cos(theta) * radiusAtY * radius;
         const z = Math.sin(theta) * radiusAtY * radius;
-
-        const randomChar = allowedChars[Math.floor(Math.random() * allowedChars.length)];
-        if (sphereData[randomChar]) {
-            sphereData[randomChar].push(x, y * radius, z);
-        }
+        const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
+        sphereData[randomChar].push(x, y * radius, z);
     }
 
     const sphereGroup = new THREE.Group();
@@ -138,156 +131,320 @@ function createAsciiSphere(pointsCount, radius, targetWord) {
     return sphereGroup;
 }
 
-// Central Sun Placeholder
-const planetSpin = new THREE.Group();
-const sun = createAsciiSphere(3000, 1.0);
-planetSpin.add(sun);
+// Disk eccentricity. 1.0 = a circular disk whose on-screen oval comes purely
+// from the system tilt; drop below 1 to additionally squash the disk in z.
+const ELLIPSE_FACTOR = 1.0;
 
+// --- Spiral arm geometry (shared by the dust field and the typography) ---
+const numArms = 2;
+const armTightness = 3.4;
+const DUST_INNER = 1.5;
+const DUST_OUTER = 6.2;
+const armSpan = DUST_OUTER - DUST_INNER;
+
+// Arm centerline as a function of radius. Uses the same winding the dust
+// density peaks on, so text laid on this curve sits directly on an arm.
+function armPoint(r, armIndex) {
+    const u = (r - DUST_INNER) / armSpan;
+    const theta = u * armTightness * Math.PI + armIndex * (2 * Math.PI / numArms);
+    return { x: Math.cos(theta) * r, z: Math.sin(theta) * r * ELLIPSE_FACTOR };
+}
+
+// Central Core
 const ringSpin = new THREE.Group();
 const RING_SPIN = 0.14;
 
-const TECH_RAD_1 = 3.2;
-const TECH_RAD_2 = 4.0;
-const ORBIT_RADIUS = 4.45; // Orbital track path for the placeholder planets
-const NAV_RADIUS = 4.9;
+// Supermassive black hole with a live, gravity-driven accretion disk that
+// drains the whole galaxy. A large dark event-horizon shadow is ringed by a
+// bright photon ring and fed by ASCII matter under Newtonian free-fall: every
+// particle glides inward from anywhere across the galactic disk, whirls ever
+// faster (angular momentum) and heats up (brighter glyph) as gravity hauls it
+// in, then vanishes at the horizon and is re-fed from the rim — so the entire
+// galaxy is forever spiralling into the core.
+const EVENT_HORIZON = 0.85;  // matter vanishes inside this radius (the shadow)
+const DISK_INNER = 1.0;      // hot, bright inner rim of the disk
+const SPAWN_OUTER = 6.0;     // matter is vacuumed in from across the whole galaxy
+const DISK_SPAN = SPAWN_OUTER - DISK_INNER;
+const DISK_COUNT = 5000;
+const GM = 2.2;              // gravitational pull — raise to suck harder/faster
+const ANG_MOMENTUM = 0.65;   // higher = more spiral winding before the plunge
+const INFLOW = 0.2;          // baseline inward glide so the whole disk drains visibly
 
-// Instantiate the 4 planets with unique link character pools
+// Per-particle state (polar position, radial velocity, angular momentum).
+const diskR = new Float32Array(DISK_COUNT);
+const diskVr = new Float32Array(DISK_COUNT);
+const diskTheta = new Float32Array(DISK_COUNT);
+const diskL = new Float32Array(DISK_COUNT);
+const diskYSeed = new Float32Array(DISK_COUNT);
+const diskNoise = new Float32Array(DISK_COUNT);
+
+function spawnDiskParticle(i, atEdge) {
+    // Launch radius spread across the whole galactic disk, biased inward for a
+    // dense, bright core with matter reaching all the way out to the rim.
+    const ra = DISK_INNER + Math.pow(Math.random(), 1.2) * DISK_SPAN;
+    const L = ANG_MOMENTUM * Math.sqrt(GM * ra);
+    diskL[i] = L;
+    diskTheta[i] = Math.random() * Math.PI * 2;
+    diskYSeed[i] = Math.random() + Math.random() - 1.0; // triangular, ~[-1, 1]
+    diskNoise[i] = (Math.random() - 0.5) * 0.2;
+
+    if (atEdge) {
+        // Fresh matter enters at its launch radius already gliding inward.
+        diskR[i] = ra;
+        diskVr[i] = -INFLOW;
+    } else {
+        // Initial fill: seed along the infall path so the disk is full at once.
+        const E = 0.5 * L * L / (ra * ra) - GM / ra;
+        const r = EVENT_HORIZON + Math.random() * (ra - EVENT_HORIZON);
+        diskR[i] = r;
+        diskVr[i] = -INFLOW - Math.sqrt(Math.max(0, 2 * (E + GM / r) - (L * L) / (r * r)));
+    }
+}
+for (let i = 0; i < DISK_COUNT; i++) spawnDiskParticle(i, false);
+
+// One preallocated position buffer per glyph. Each frame the live particles
+// are sorted into these by brightness, and only the used range is uploaded.
+const charIndex = {};
+for (let i = 0; i < charSet.length; i++) charIndex[charSet[i]] = i;
+const rampBucket = ringRamp.map((c) => charIndex[c]);
+const RAMP_MAX = ringRamp.length - 1;
+
+const diskBuffers = [];
+const diskGeometries = [];
+const diskGroup = new THREE.Group();
+for (let i = 0; i < charSet.length; i++) {
+    const arr = new Float32Array(DISK_COUNT * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    geo.setDrawRange(0, 0);
+    diskBuffers.push(arr);
+    diskGeometries.push(geo);
+    diskGroup.add(new THREE.Points(geo, materials[charSet[i]]));
+}
+ringSpin.add(diskGroup);
+
+const diskCounts = new Int32Array(charSet.length);
+
+function updateAccretionDisk(dt) {
+    diskCounts.fill(0);
+
+    for (let i = 0; i < DISK_COUNT; i++) {
+        let r = diskR[i];
+
+        // Newtonian free-fall: gravity accelerates matter inward while angular
+        // momentum makes it whirl ever faster — slow at the rim, a violent
+        // plunge at the horizon.
+        const vr = diskVr[i] - (GM / (r * r)) * dt;
+        r += vr * dt;
+        const theta = diskTheta[i] - (diskL[i] / (r * r)) * dt;
+
+        if (r <= EVENT_HORIZON) {
+            spawnDiskParticle(i, true); // consumed — re-fed from the rim
+            continue;
+        }
+        diskR[i] = r;
+        diskVr[i] = vr;
+        diskTheta[i] = theta;
+
+        const u = Math.max(0, Math.min(1, (r - DISK_INNER) / DISK_SPAN));
+        const x = Math.cos(theta) * r;
+        const z = Math.sin(theta) * r * ELLIPSE_FACTOR;
+
+        // Thin galactic disk, a touch puffier toward the rim — matter draining
+        // across the whole plane, settling thinner as it nears the hole.
+        const thickness = 0.05 + 0.10 * u;
+        const y = diskYSeed[i] * thickness;
+
+        // Hottest at the inner rim, fading out across the disk, with one side
+        // Doppler-beamed brighter.
+        const beaming = 0.6 + 0.4 * Math.cos(theta);
+        let b = Math.pow(1 - u, 0.7) * beaming + diskNoise[i];
+        b = Math.max(0, Math.min(1, b));
+
+        const bucket = rampBucket[Math.floor(b * RAMP_MAX)];
+        const n = diskCounts[bucket]++;
+        const arr = diskBuffers[bucket];
+        arr[n * 3] = x;
+        arr[n * 3 + 1] = y;
+        arr[n * 3 + 2] = z;
+    }
+
+    for (let i = 0; i < charSet.length; i++) {
+        const used = diskCounts[i];
+        const pos = diskGeometries[i].attributes.position;
+        pos.updateRange.offset = 0;
+        pos.updateRange.count = used * 3;
+        if (used > 0) pos.needsUpdate = true;
+        diskGeometries[i].setDrawRange(0, used);
+    }
+}
+updateAccretionDisk(0);
+
+// Photon ring: a thin, bright, persistent ring hugging the shadow's edge —
+// the black hole's defining silhouette, steady beneath the churning disk.
+function createPhotonRing(count) {
+    const data = {};
+    for (let i = 0; i < charSet.length; i++) data[charSet[i]] = [];
+    for (let i = 0; i < count; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const r = EVENT_HORIZON + 0.05 + (Math.random() - 0.5) * 0.05;
+        const x = Math.cos(theta) * r;
+        const z = Math.sin(theta) * r * ELLIPSE_FACTOR;
+        const y = (Math.random() - 0.5) * 0.03;
+        const char = ringRamp[RAMP_MAX - Math.floor(Math.random() * 4)];
+        data[char].push(x, y, z);
+    }
+    const group = new THREE.Group();
+    for (let i = 0; i < charSet.length; i++) {
+        const char = charSet[i];
+        if (data[char].length > 0) {
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(data[char], 3));
+            group.add(new THREE.Points(geo, materials[char]));
+        }
+    }
+    return group;
+}
+ringSpin.add(createPhotonRing(420));
+
+// Orbiting bodies — irregular radii, phases, heights and sizes so the
+// orbital layer reads as a natural system rather than a flat square.
+const PLANET_DEFS = [
+    { angle: 0.35, radius: 3.6, height: 0.45, size: 0.30 },
+    { angle: 2.05, radius: 4.7, height: -0.30, size: 0.18 },
+    { angle: 3.50, radius: 4.2, height: 0.15, size: 0.34 },
+    { angle: 5.10, radius: 5.2, height: -0.55, size: 0.22 }
+];
+
 const orbitingPlanets = [];
-const planetLabels = ['me', 'github', 'linkedin', 'email'];
-
-for (let i = 0; i < 4; i++) {
-    const angle = (i / 4) * Math.PI * 2;
-    const planetPlaceholder = createAsciiSphere(380, 0.24, planetLabels[i]);
-    planetPlaceholder.position.set(
-        Math.cos(angle) * ORBIT_RADIUS,
-        0,
-        Math.sin(angle) * ORBIT_RADIUS
+PLANET_DEFS.forEach(({ angle, radius, height, size }) => {
+    const pointsCount = Math.round(350 * (size / 0.22) ** 2);
+    const planet = createAsciiSphere(pointsCount, size);
+    planet.position.set(
+        Math.cos(angle) * radius,
+        height,
+        Math.sin(angle) * radius * ELLIPSE_FACTOR
     );
-    ringSpin.add(planetPlaceholder);
-    orbitingPlanets.push(planetPlaceholder);
+    ringSpin.add(planet);
+    orbitingPlanets.push(planet);
+});
+
+// --- Typography woven into the spiral arms ---
+// Each arm carries a strand of words (skills inner, nav outer). Letters are
+// distributed by equal arc length so both arms span the same radial band.
+const TEXT_INNER = 2.0;
+const TEXT_OUTER = 6.0;
+
+const armWords = [
+    "mysql rds elasticbeanstalk health   projects   about   github",
+    "ucsd cogs109 python syn100 coursewise   linkedin   contact"
+];
+
+const textData = {};
+for (let i = 0; i < charSet.length; i++) textData[charSet[i]] = [];
+
+function layTextAlongArm(str, armIndex) {
+    const samples = [];
+    let arc = 0;
+    let prev = armPoint(TEXT_INNER, armIndex);
+    for (let r = TEXT_INNER; r <= TEXT_OUTER; r += 0.01) {
+        const p = armPoint(r, armIndex);
+        arc += Math.hypot(p.x - prev.x, p.z - prev.z);
+        samples.push({ arc, x: p.x, z: p.z });
+        prev = p;
+    }
+    const totalArc = arc;
+
+    let si = 0;
+    for (let k = 0; k < str.length; k++) {
+        const target = str.length > 1 ? (k / (str.length - 1)) * totalArc : 0;
+        while (si < samples.length - 1 && samples[si].arc < target) si++;
+        const ch = str[k];
+        if (ch !== ' ' && textData[ch]) textData[ch].push(samples[si].x, 0, samples[si].z);
+    }
 }
 
-const navWords = ["projects", "about", "github", "linkedin", "contact"];
-const spacer = "          ";
-const ringText = navWords.join(spacer) + spacer;
+armWords.forEach((str, armIndex) => layTextAlongArm(str, armIndex));
 
-const navData = {};
-for (let i = 0; i < charSet.length; i++) navData[charSet[i]] = [];
-
-for (let i = 0; i < ringText.length; i++) {
-    const char = ringText[i];
-    if (char === ' ') continue;
-    const theta = (i / ringText.length) * Math.PI * 2;
-
-    const x = Math.cos(theta) * NAV_RADIUS;
-    const z = Math.sin(theta) * NAV_RADIUS;
-
-    if (navData[char]) navData[char].push(x, 0, z);
-}
-
-const navGroup = new THREE.Group();
+const textGroup = new THREE.Group();
 for (let i = 0; i < charSet.length; i++) {
     const char = charSet[i];
-    if (navData[char].length > 0) {
+    if (textData[char].length > 0) {
         const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(navData[char], 3));
-        navGroup.add(new THREE.Points(geo, materials[char]));
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(textData[char], 3));
+        textGroup.add(new THREE.Points(geo, materials[char]));
     }
 }
-ringSpin.add(navGroup);
+ringSpin.add(textGroup);
 
-const techString1 = "mysql rds elasticbeanstalk health data mads ".repeat(3);
-const techString2 = "ucsd cogs109 python syn100 coursewise ".repeat(4);
-
-const techData = {};
-for (let i = 0; i < charSet.length; i++) techData[charSet[i]] = [];
-
-const addTechRing = (str, radius) => {
-    for (let i = 0; i < str.length; i++) {
-        const char = str[i];
-        if (char === ' ') continue;
-        const theta = (i / str.length) * Math.PI * 2;
-
-        const x = Math.cos(theta) * radius;
-        const z = Math.sin(theta) * radius;
-
-        if (techData[char]) techData[char].push(x, 0, z);
-    }
-};
-
-addTechRing(techString1, TECH_RAD_1);
-addTechRing(techString2, TECH_RAD_2);
-
-const techGroup = new THREE.Group();
-for (let i = 0; i < charSet.length; i++) {
-    const char = charSet[i];
-    if (techData[char].length > 0) {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(techData[char], 3));
-        techGroup.add(new THREE.Points(geo, materials[char]));
-    }
-}
-ringSpin.add(techGroup);
-
-// Rings
-const DUST_COUNT = 4500;
-const DUST_INNER = 2.6;
-const DUST_OUTER = 5.8;
+// --- Pronounced Scattered Elliptical Galaxy Block ---
+const DUST_COUNT = 5500;
 const dustData = {};
 for (let i = 0; i < charSet.length; i++) dustData[charSet[i]] = [];
 
 let placed = 0;
 let attempts = 0;
-const phase1 = Math.random() * Math.PI * 2;
-const phase2 = Math.random() * Math.PI * 2;
 
 while (placed < DUST_COUNT && attempts < DUST_COUNT * 100) {
     attempts++;
-    const r = DUST_INNER + Math.random() * (DUST_OUTER - DUST_INNER);
+
+    // Area-proportional sampling prevents center crowding artifacts
+    const r2_min = DUST_INNER * DUST_INNER;
+    const r2_max = DUST_OUTER * DUST_OUTER;
+    const r = Math.sqrt(r2_min + Math.random() * (r2_max - r2_min));
+
     const u = (r - DUST_INNER) / (DUST_OUTER - DUST_INNER);
     const theta = Math.random() * Math.PI * 2;
 
-    const edge = smoothstep(0.0, 0.15, u) * smoothstep(1.0, 0.85, u);
-    const cassini = 1 - 0.85 * bump(u, 0.65, 0.035);
-    const encke = 1 - 0.60 * bump(u, 0.88, 0.015);
-    const ringlets = 0.5 + 0.5 * Math.sin(u * 80.0);
-    let dRad = edge * cassini * encke * ringlets;
+    // 1. Minimal Core Glow
+    const bulgeDensity = Math.exp(-3.5 * u) * 0.25;
 
-    const wave1 = Math.sin(3 * theta + phase1 + u * 10);
-    const wave2 = Math.sin(5 * theta + phase2 - u * 5);
-    const dAz = 0.65 + 0.35 * (0.6 * wave1 + 0.4 * wave2);
+    // 2. Highly Pronounced Spiral Arms
+    const spiralWinding = theta - u * armTightness * Math.PI;
+    const turbulence = 0.15 * Math.sin(r * 4.0 + theta);
+    const armBase = (Math.cos(numArms * spiralWinding + turbulence) + 1) / 2;
 
-    let density = dRad * dAz;
+    const armProfile = Math.pow(armBase, 5.5);
+    const armClumps = 0.7 + 0.3 * Math.sin(u * 15.0 + theta * 2.0);
+    const armDensity = armProfile * armClumps * 1.3 * (1.0 - u * 0.2);
 
-    const carveTech1 = bump(r, TECH_RAD_1, 0.10);
-    const carveTech2 = bump(r, TECH_RAD_2, 0.10);
-    const carvePlanets = bump(r, ORBIT_RADIUS, 0.12); // Carves a lane for the planets
-    const carveNav = bump(r, NAV_RADIUS, 0.14);
+    // 3. Clean Inter-arm Voids
+    const ambientDensity = 0.02 * (1.0 - u);
 
-    density *= (1 - 0.85 * carveTech1);
-    density *= (1 - 0.85 * carveTech2);
-    density *= (1 - 0.90 * carvePlanets);
-    density *= (1 - 0.95 * carveNav);
+    let density = bulgeDensity + armDensity + ambientDensity;
+    density *= smoothstep(1.0, 0.85, u);
+
     density = Math.max(0, density);
 
     if (Math.random() > density) continue;
     placed++;
 
-    const x = Math.cos(theta) * r;
-    const z = Math.sin(theta) * r;
+    let x = Math.cos(theta) * r;
+    let z = Math.sin(theta) * r;
 
-    const thicknessMod = 1.2 - 0.8 * density;
-    const edgeTaper = smoothstep(0.0, 0.2, u) * smoothstep(1.0, 0.8, u);
-    const y = (Math.random() - 0.5) * 0.18 * thicknessMod * edgeTaper;
+    // 4. Snug Position Jittering
+    const jitterStrength = 0.07 + u * 0.12;
+    x += (Math.random() - 0.5) * jitterStrength;
+    z += (Math.random() - 0.5) * jitterStrength;
 
-    let baseBright = Math.pow(density, 0.6);
-    let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.2;
+    // Apply Ellipse compression factor to match system eccentric paths
+    z *= ELLIPSE_FACTOR;
+
+    // 5. 3D Thickness Envelope
+    const bulgeHeight = 0.30 * Math.exp(-4.0 * u);
+    const armHeight = 0.05 + u * 0.08;
+    const verticalSpread = Math.max(armHeight, bulgeHeight) * (Math.random() + Math.random() - 1.0) * 0.5;
+    const y = verticalSpread;
+
+    let baseBright = Math.pow(density, 0.5);
+    let noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.15;
     let b = Math.max(0, Math.min(1, baseBright + noise));
 
     let bIndex = Math.floor(b * (ringRamp.length - 1));
     const char = ringRamp[bIndex];
     dustData[char].push(x, y, z);
 }
+// --- End Galaxy Block ---
 
 const dustGroup = new THREE.Group();
 for (let i = 0; i < charSet.length; i++) {
@@ -305,7 +462,6 @@ systemTilt.rotation.x = Math.PI / 5.5;
 systemTilt.rotation.z = -Math.PI / 12;
 systemTilt.rotation.y = 0.1;
 
-systemTilt.add(planetSpin);
 systemTilt.add(ringSpin);
 scene.add(systemTilt);
 
@@ -423,15 +579,15 @@ const clock = new THREE.Clock();
 const MAX_AZIMUTH = 0.30;
 const MAX_ELEVATION = 0.22;
 const POINTER_EASE = 3.0;
-const PLANET_SPIN = 0.10;
 let sceneRevealed = false;
 
 function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    planetSpin.rotation.y += PLANET_SPIN * dt;
     ringSpin.rotation.y -= RING_SPIN * dt;
+
+    updateAccretionDisk(dt);
 
     // Spin each placeholder planet on its individual local axis
     orbitingPlanets.forEach((planet, index) => {
@@ -459,8 +615,8 @@ function animate() {
         camera.position.y += (desiredY - camera.position.y) * k;
         camera.position.z += (desiredZ - camera.position.z) * k;
     } else {
-        // High-velocity snap intro effect
-        const introSpeed = 3.5;
+        // Snappy visual intro zoom effect
+        const introSpeed = 5;
         const k = 1 - Math.exp(-introSpeed * dt);
 
         camera.position.x += (0 - camera.position.x) * k;
