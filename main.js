@@ -450,14 +450,15 @@ async function waitForFonts() {
     // Orbiting bodies — irregular radii, phases, heights and sizes so the
     // orbital layer reads as a natural system rather than a flat square.
     const PLANET_DEFS = [
-        { angle: 0.35, radius: 3.6, height: 0.45, size: 0.30 },
-        { angle: 2.05, radius: 4.7, height: -0.30, size: 0.18 },
-        { angle: 3.50, radius: 4.2, height: 0.15, size: 0.34 },
-        { angle: 5.10, radius: 5.2, height: -0.55, size: 0.22 }
+        { word: 'projects', angle: 0.35, radius: 3.6, height: 0.45, size: 0.30 },
+        { word: 'about', angle: 1.55, radius: 4.6, height: -0.30, size: 0.24 },
+        { word: 'github', angle: 2.80, radius: 4.2, height: 0.15, size: 0.34 },
+        { word: 'linkedin', angle: 4.05, radius: 5.2, height: -0.50, size: 0.27 },
+        { word: 'email', angle: 5.30, radius: 4.0, height: 0.30, size: 0.22 }
     ];
 
     const orbitingPlanets = [];
-    PLANET_DEFS.forEach(({ angle, radius, height, size }) => {
+    PLANET_DEFS.forEach(({ word, angle, radius, height, size }) => {
         const pointsCount = Math.round(350 * (size / 0.22) ** 2 * (SMALL ? 0.75 : 1));
         const planet = createAsciiSphere(pointsCount, size, planetMats);
         planet.position.set(
@@ -466,7 +467,7 @@ async function waitForFonts() {
             Math.sin(angle) * radius * ELLIPSE_FACTOR
         );
         ringSpin.add(planet);
-        orbitingPlanets.push(planet);
+        orbitingPlanets.push({ group: planet, word, size });
     });
 
     // --- Typography woven into the spiral arms ---
@@ -490,7 +491,7 @@ async function waitForFonts() {
     for (let i = 0; i < charSet.length; i++) flavorData[charSet[i]] = [];
 
     const navGroup = new THREE.Group();
-    const navPickList = []; // Points objects the raycaster tests for hover/click
+    const navPickList = []; // arm-word letter Points burned white on hover
 
     function layWordsAlongArm(words, armIndex) {
         const samples = [];
@@ -729,14 +730,12 @@ async function waitForFonts() {
     let targetPointerX = 0, targetPointerY = 0;
     let pointerX = 0, pointerY = 0;
     let pointerPxX = -100, pointerPxY = -100;
-    const pointerNDC = new THREE.Vector2(-2, -2); // offscreen until first move
     let pointerSeen = false;
+    let pointerDown = false;
 
     function setPointer(clientX, clientY) {
         targetPointerX = Math.max(-1, Math.min(1, (clientX - window.innerWidth / 2) / (window.innerWidth / 2)));
         targetPointerY = Math.max(-1, Math.min(1, (clientY - window.innerHeight / 2) / (window.innerHeight / 2)));
-        pointerNDC.x = (clientX / window.innerWidth) * 2 - 1;
-        pointerNDC.y = -(clientY / window.innerHeight) * 2 + 1;
         pointerPxX = clientX;
         pointerPxY = clientY;
         pointerSeen = true;
@@ -752,12 +751,18 @@ async function waitForFonts() {
         if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
-    // Hold anywhere on the void to feed the black hole; release to let the
-    // disk settle back into its slow drain.
-    renderer.domElement.addEventListener('pointerdown', () => { feedTarget = 3.6; });
-    window.addEventListener('pointerup', () => { feedTarget = 1; });
-    window.addEventListener('pointercancel', () => { feedTarget = 1; });
-    window.addEventListener('blur', () => { feedTarget = 1; });
+    // Press and hold the void to engage: the camera parallax follows the
+    // pointer and gravity surges, feeding the black hole. Release to let the
+    // view glide back to center and the disk settle into its slow drain.
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        pointerDown = true;
+        feedTarget = 3.6;
+        setPointer(e.clientX, e.clientY);
+    });
+    function releasePointer() { pointerDown = false; feedTarget = 1; }
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
+    window.addEventListener('blur', releasePointer);
 
     // Scroll to dolly toward / away from the horizon.
     let dolly = 1, dollyTarget = 1;
@@ -765,14 +770,32 @@ async function waitForFonts() {
         dollyTarget = Math.max(0.78, Math.min(1.35, dollyTarget + e.deltaY * 0.0009));
     }, { passive: true });
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.params.Points = { threshold: 0.3 };
+    // Picking happens in screen space: each planet's centre is projected to
+    // pixels and the nearest planet within reach (minus its on-screen radius)
+    // wins. Pixel-based reach stays accurate at any dolly distance, and the
+    // release radius is wider than the grab radius so a hovered planet doesn't
+    // flicker as the spinning ring drifts under the cursor.
+    const PICK_RADIUS = 28;
+    const PICK_RELEASE = 52;
+    const pickV = new THREE.Vector3();
     let hoveredWord = null;
 
-    function pickWord(ndc) {
-        raycaster.setFromCamera(ndc, camera);
-        const hit = raycaster.intersectObjects(navPickList, false)[0];
-        return hit ? hit.object.userData.word : null;
+    function pickWord(px, py) {
+        let bestWord = null, bestD = Infinity;
+        const halfV = Math.tan((FOV * Math.PI) / 360);
+        for (const p of orbitingPlanets) {
+            pickV.setFromMatrixPosition(p.group.matrixWorld);
+            const depth = camera.position.distanceTo(pickV);
+            const screenR = (p.size / (2 * depth * halfV)) * window.innerHeight;
+            pickV.project(camera);
+            if (pickV.z > 1) continue; // behind the camera
+            const dx = (pickV.x + 1) * window.innerWidth / 2 - px;
+            const dy = (1 - pickV.y) * window.innerHeight / 2 - py;
+            const d = Math.max(0, Math.hypot(dx, dy) - screenR);
+            if (d < bestD) { bestD = d; bestWord = p.word; }
+        }
+        const reach = bestWord && bestWord === hoveredWord ? PICK_RELEASE : PICK_RADIUS;
+        return bestD <= reach ? bestWord : null;
     }
 
     // Hovering a nav word burns it to full white, swells it slightly, eases
@@ -800,29 +823,11 @@ async function waitForFonts() {
     }
 
     renderer.domElement.addEventListener('click', (e) => {
-        const ndc = new THREE.Vector2(
-            (e.clientX / window.innerWidth) * 2 - 1,
-            -(e.clientY / window.innerHeight) * 2 + 1
-        );
-        const word = pickWord(ndc);
+        const word = pickWord(e.clientX, e.clientY);
         if (word) navActivate(word);
     });
 
-    // --------------------------------------------------------- typing ----
-    const nameEl = document.getElementById('nametext');
-
-    function typeName() {
-        if (REDUCED) {
-            nameEl.textContent = NAME;
-            return;
-        }
-        let i = 0;
-        const timer = setInterval(() => {
-            i++;
-            nameEl.textContent = NAME.slice(0, i);
-            if (i >= NAME.length) clearInterval(timer);
-        }, 70);
-    }
+    document.getElementById('nametext').textContent = NAME.toLowerCase();
 
     // -------------------------------------------------------- animate ----
     const clock = new THREE.Clock();
@@ -850,9 +855,12 @@ async function waitForFonts() {
 
         updateAccretionDisk(dt * Math.max(motionK, 0.3));
 
-        // Spin each placeholder planet on its individual local axis
-        orbitingPlanets.forEach((planet, index) => {
-            planet.rotation.y += (0.2 + index * 0.05) * dt * motionK;
+        // Spin each planet on its local axis; the hovered one swells a touch.
+        orbitingPlanets.forEach((p, index) => {
+            p.group.rotation.y += (0.2 + index * 0.05) * dt * motionK;
+            const scaleTarget = hoveredWord === p.word ? 1.18 : 1;
+            const s = p.group.scale.x + (scaleTarget - p.group.scale.x) * (1 - Math.exp(-6 * dt));
+            p.group.scale.setScalar(s);
         });
 
         starGroup.rotation.y -= 0.025 * dt * motionK;
@@ -867,9 +875,13 @@ async function waitForFonts() {
 
         if (introDone) {
             if (!REDUCED) {
+                // Parallax only while the pointer is held; on release the
+                // view eases back to dead center.
+                const wantX = pointerDown ? targetPointerX : 0;
+                const wantY = pointerDown ? targetPointerY : 0;
                 const pointerK = 1 - Math.exp(-2.5 * dt);
-                pointerX += (targetPointerX - pointerX) * pointerK;
-                pointerY += (targetPointerY - pointerY) * pointerK;
+                pointerX += (wantX - pointerX) * pointerK;
+                pointerY += (wantY - pointerY) * pointerK;
             }
 
             const azimuth = pointerX * MAX_AZIMUTH;
@@ -886,7 +898,7 @@ async function waitForFonts() {
             camera.position.y += (desiredY - camera.position.y) * k;
             camera.position.z += (desiredZ - camera.position.z) * k;
 
-            if (pointerSeen) setHoveredWord(pickWord(pointerNDC));
+            if (pointerSeen) setHoveredWord(pickWord(pointerPxX, pointerPxY));
         } else {
             // Snappy visual intro zoom effect
             const introSpeed = 5;
@@ -920,5 +932,4 @@ async function waitForFonts() {
 
     animate();
     document.body.classList.add('loaded');
-    setTimeout(typeName, REDUCED ? 0 : 400);
 })();
