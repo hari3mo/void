@@ -3,22 +3,80 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>haris saif</title>
+    <meta name="description" content="haris saif — data scientist in san diego. an ascii galaxy spiralling into a black hole.">
+    <meta name="theme-color" content="#030305">
+    <meta property="og:title" content="haris saif">
+    <meta property="og:description" content="data scientist in san diego. an ascii galaxy spiralling into a black hole.">
+    <meta property="og:type" content="website">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23030305'/%3E%3Ccircle%20cx='32'%20cy='32'%20r='15'%20fill='none'%20stroke='%23f2f2f2'%20stroke-width='3'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <header class="identity">
-        <h1 class="name"><span id="nametext"></h1>
-        <p class="tagline">Data Scientist · san diego</p>
+        <h1 class="name"><span class="prompt" aria-hidden="true">&gt; </span><span
+                id="nametext"></span><span class="cursor" aria-hidden="true"></span></h1>
+        <p class="tagline">data scientist · san diego</p>
     </header>
 
-    <!-- <div id="cursor-coords" class="cursor-coords">X: +0.000 | Y: +0.000</div> -->
+    <nav class="links" aria-label="links">
+        <button class="link" type="button" data-panel="projects">projects</button>
+        <button class="link" type="button" data-panel="about">about</button>
+        <a class="link" href="https://github.com/hari3mo" target="_blank" rel="noopener">github</a>
+        <!-- EDIT: your linkedin url (keep in sync with LINKS in main.js) -->
+        <a class="link" href="https://www.linkedin.com/in/REPLACE-ME" target="_blank" rel="noopener">linkedin</a>
+        <!-- EDIT: your email (keep in sync with LINKS in main.js) -->
+        <a class="link" href="mailto:replace-me@example.com">email</a>
+    </nav>
+
+    <section class="panel" id="panel-about" role="dialog" aria-labelledby="panel-about-title">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-about-title">~/about</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <!-- EDIT: your story -->
+            <p>data scientist in san diego, making messy real-world data legible. i like small tools, odd corners
+                of the internet, and the occasional black hole.</p>
+            <p>cognitive science · ucsd</p>
+        </div>
+    </section>
+
+    <section class="panel" id="panel-projects" role="dialog" aria-labelledby="panel-projects-title">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-projects-title">~/projects</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <!-- EDIT: your projects -->
+            <ul class="projects">
+                <li>
+                    <span class="project-name">coursewise</span>
+                    <span class="project-desc">[one line about it]</span>
+                </li>
+                <li>
+                    <span class="project-name">health</span>
+                    <span class="project-desc">[one line about it]</span>
+                </li>
+                <li>
+                    <span class="project-name">void</span>
+                    <span class="project-desc">this site — an ascii galaxy in three.js, no build step</span>
+                </li>
+            </ul>
+            <p class="panel-foot"><a href="https://github.com/hari3mo?tab=repositories" target="_blank"
+                    rel="noopener">more on github →</a></p>
+        </div>
+    </section>
 
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme">
-        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
             style="display: block;">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -30,14 +88,16 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
-        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
             style="display: none;">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
     </button>
 
-    <!-- <div class="hint" id="hint">click anywhere</div> -->
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+    <div class="reticle" aria-hidden="true"><span class="reticle-label" id="reticle-label"></span></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="main.js"></script>
