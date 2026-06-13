@@ -13,7 +13,7 @@ const NAME = 'haris saif';
 const LINKS = {
     github: 'https://github.com/hari3mo',
     linkedin: 'https://www.linkedin.com/in/REPLACE-ME',
-    email: 'mailto:replace-me@example.com'
+    email: 'mailto:harisasaif@gmail.com'
 };
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,7 +42,7 @@ const PALETTES = {
         disk: [[0, '#474747'], [0.45, '#909090'], [0.8, '#dcdcdc'], [1, '#ffffff']],
         dust: [[0, '#373737'], [0.5, '#707070'], [1, '#d4d4d4']],
         star: [[0, '#585858'], [1, '#dadada']],
-        planet: [[0, '#4d4d4d'], [1, '#c8c8c8']],
+        planet: [[0, '#6e6e6e'], [1, '#ededed']],
         flavor: '#888888',
         nav: '#f0f0f0',
         navHot: '#ffffff'
@@ -53,7 +53,7 @@ const PALETTES = {
         disk: [[0, '#cccccc'], [0.45, '#8c8c8c'], [0.8, '#3a3a3a'], [1, '#0d0d0d']],
         dust: [[0, '#d3d3d3'], [0.5, '#929292'], [1, '#454545']],
         star: [[0, '#c9c9c9'], [1, '#525252']],
-        planet: [[0, '#cacaca'], [1, '#525252']],
+        planet: [[0, '#9a9a9a'], [1, '#2a2a2a']],
         flavor: '#9a9a9a',
         nav: '#202020',
         navHot: '#000000'
@@ -228,7 +228,7 @@ async function waitForFonts() {
 
     const planetMats = makeMaterialSet(charSet,
         (ch) => rampColor(palette().planet, rankOf[ch]),
-        () => 0.115);
+        () => 0.15);
 
     const starMats = makeMaterialSet(starCharSet,
         (ch) => rampColor(palette().star, starCharSet.indexOf(ch) / (starCharSet.length - 1)),
@@ -236,8 +236,8 @@ async function waitForFonts() {
         { transparent: true });
 
     const flavorMats = makeMaterialSet(charSet, () => palette().flavor, () => 0.12);
-    const navMats = makeMaterialSet(charSet, () => palette().nav, () => 0.19);
-    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => 0.23);
+    const navMats = makeMaterialSet(charSet, () => palette().nav, () => 0.24);
+    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => 0.30);
 
     function createAsciiSphere(pointsCount, radius, mats) {
         const sphereData = {};
@@ -286,7 +286,7 @@ async function waitForFonts() {
 
     // Central Core
     const ringSpin = new THREE.Group();
-    const RING_SPIN = 0.14;
+    const RING_SPIN = 0.2;
 
     // Supermassive black hole with a live, gravity-driven accretion disk that
     // drains the whole galaxy. A large dark event-horizon shadow is ringed by a
@@ -483,8 +483,8 @@ async function waitForFonts() {
 
     const NAV_WORDS = new Set(['projects', 'about', 'github', 'linkedin', 'email']);
     const ARM_WORDS = [
-        ['mysql', 'rds', 'elasticbeanstalk', 'health', 'projects', 'about', 'github'],
-        ['ucsd', 'cogs109', 'python', 'syn100', 'coursewise', 'linkedin', 'email']
+        ['mysql', 'rds', 'elasticbeanstalk', 'health'],
+        ['ucsd', 'cogs109', 'python', 'syn100', 'coursewise']
     ];
 
     const flavorData = {};
@@ -548,6 +548,33 @@ async function waitForFonts() {
     }
 
     ARM_WORDS.forEach((words, armIndex) => layWordsAlongArm(words, armIndex));
+
+    // Each planet's title wraps along its own orbit, starting just to the
+    // planet's other side (decreasing angle) so the label reads left-to-right
+    // and curves with the spiral. Same arc pitch as arm words.
+    function layPlanetLabel({ word, angle, radius, height, size }) {
+        const startArc = size + 0.22;  // clear the sphere before the first letter
+        const perChar = {};
+        for (let k = 0; k < word.length; k++) {
+            const a = angle - (startArc + k * CHAR_ARC) / radius;
+            const ch = word[k];
+            (perChar[ch] = perChar[ch] || []).push(
+                Math.cos(a) * radius,
+                height,
+                Math.sin(a) * radius * ELLIPSE_FACTOR
+            );
+        }
+        for (const ch in perChar) {
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(perChar[ch], 3));
+            const points = new THREE.Points(geo, navMats[ch]);
+            points.userData = { word, ch };
+            navGroup.add(points);
+            navPickList.push(points);
+        }
+    }
+    PLANET_DEFS.forEach(layPlanetLabel);
+
     ringSpin.add(navGroup);
 
     const flavorGroup = new THREE.Group();
@@ -692,14 +719,17 @@ async function waitForFonts() {
     // --------------------------------------------------------- panels ----
     const panels = {
         about: document.getElementById('panel-about'),
-        projects: document.getElementById('panel-projects')
+        projects: document.getElementById('panel-projects'),
+        email: document.getElementById('panel-email')
     };
     let lastFocus = null;
+    let panelOpen = false;
 
     function openPanel(name) {
         lastFocus = document.activeElement;
         for (const key in panels) panels[key].classList.toggle('open', key === name);
         panels[name].querySelector('.panel-close').focus({ preventScroll: true });
+        panelOpen = true;
     }
 
     function closePanels() {
@@ -708,6 +738,7 @@ async function waitForFonts() {
             if (panels[key].classList.contains('open')) wasOpen = true;
             panels[key].classList.remove('open');
         }
+        panelOpen = false;
         if (wasOpen && lastFocus && document.contains(lastFocus)) {
             lastFocus.focus({ preventScroll: true });
         }
@@ -757,6 +788,7 @@ async function waitForFonts() {
     renderer.domElement.addEventListener('pointerdown', (e) => {
         pointerDown = true;
         feedTarget = 3.6;
+        document.body.classList.add('dragged');
         setPointer(e.clientX, e.clientY);
     });
     function releasePointer() { pointerDown = false; feedTarget = 1; }
@@ -817,8 +849,7 @@ async function waitForFonts() {
     }
 
     function navActivate(word) {
-        if (word === 'projects' || word === 'about') openPanel(word);
-        else if (word === 'email') window.location.href = LINKS.email;
+        if (word === 'projects' || word === 'about' || word === 'email') openPanel(word);
         else if (LINKS[word]) window.open(LINKS[word], '_blank', 'noopener');
     }
 
@@ -846,7 +877,7 @@ async function waitForFonts() {
         const dt = Math.min(clock.getDelta(), 0.1);
         elapsed += dt;
 
-        const spinTarget = REDUCED ? 0 : (hoveredWord ? 0.18 : 1);
+        const spinTarget = REDUCED ? 0 : (hoveredWord || panelOpen ? 0.18 : 1);
         spinScale += (spinTarget - spinScale) * (1 - Math.exp(-4 * dt));
         ringSpin.rotation.y -= RING_SPIN * spinScale * dt;
 
@@ -857,7 +888,8 @@ async function waitForFonts() {
 
         // Spin each planet on its local axis; the hovered one swells a touch.
         orbitingPlanets.forEach((p, index) => {
-            p.group.rotation.y += (0.2 + index * 0.05) * dt * motionK;
+            const spinBoost = hoveredWord === p.word ? 1.6 : 1;
+            p.group.rotation.y += (0.2 + index * 0.05) * spinBoost * dt * motionK;
             const scaleTarget = hoveredWord === p.word ? 1.18 : 1;
             const s = p.group.scale.x + (scaleTarget - p.group.scale.x) * (1 - Math.exp(-6 * dt));
             p.group.scale.setScalar(s);

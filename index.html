@@ -30,8 +30,7 @@
         <a class="link" href="https://github.com/hari3mo" target="_blank" rel="noopener">github</a>
         <!-- EDIT: your linkedin url (keep in sync with LINKS in main.js) -->
         <a class="link" href="https://www.linkedin.com/in/REPLACE-ME" target="_blank" rel="noopener">linkedin</a>
-        <!-- EDIT: your email (keep in sync with LINKS in main.js) -->
-        <a class="link" href="mailto:replace-me@example.com">email</a>
+        <button class="link" type="button" data-panel="email">email</button>
     </nav>
 
     <section class="panel" id="panel-about" role="dialog" aria-labelledby="panel-about-title">
@@ -73,6 +72,17 @@
         </div>
     </section>
 
+    <section class="panel" id="panel-email" role="dialog" aria-labelledby="panel-email-title">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-email-title">~/email</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <p>say hi — collaborations, questions, or just to chat.</p>
+            <p class="panel-foot"><a href="mailto:harisasaif@gmail.com">harisasaif@gmail.com →</a></p>
+        </div>
+    </section>
+
     <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme">
         <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
@@ -97,6 +107,7 @@
     <div class="vignette" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
     <div class="reticle" aria-hidden="true"><span class="reticle-label" id="reticle-label"></span></div>
+    <div class="drag-hint" id="drag-hint" aria-hidden="true"><span class="drag-hint-glyph">↔</span> click + drag to look around</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="main.js"></script>
