@@ -25,11 +25,10 @@
     </header>
 
     <nav class="links" aria-label="links">
-        <button class="link" type="button" data-panel="projects">projects</button>
         <button class="link" type="button" data-panel="about">about</button>
+        <button class="link" type="button" data-panel="projects">projects</button>
+        <button class="link" type="button" data-panel="resume">resume</button>
         <a class="link" href="https://github.com/hari3mo" target="_blank" rel="noopener">github</a>
-        <!-- EDIT: your linkedin url (keep in sync with LINKS in main.js) -->
-        <a class="link" href="https://www.linkedin.com/in/REPLACE-ME" target="_blank" rel="noopener">linkedin</a>
         <button class="link" type="button" data-panel="email">email</button>
     </nav>
 
@@ -42,7 +41,7 @@
             <!-- EDIT: your story -->
             <p>data scientist in san diego, making messy real-world data legible. i like small tools, odd corners
                 of the internet, and the occasional black hole.</p>
-            <p>cognitive science · ucsd</p>
+            <!-- <p>data science · ucsd</p> -->
         </div>
     </section>
 
@@ -72,42 +71,51 @@
         </div>
     </section>
 
+    <section class="panel" id="panel-resume" role="dialog" aria-labelledby="panel-resume-title">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-resume-title">~/resume</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <!-- EDIT: your experience & education -->
+            <p class="resume-head">experience</p>
+            <ul class="projects">
+                <li>
+                    <span class="project-name">[role]</span>
+                    <span class="project-desc">[company] · [years]</span>
+                </li>
+                <li>
+                    <span class="project-name">[role]</span>
+                    <span class="project-desc">[company] · [years]</span>
+                </li>
+            </ul>
+            <p class="resume-head">education</p>
+            <ul class="projects">
+                <li>
+                    <span class="project-name">[degree]</span>
+                    <span class="project-desc">[school]</span>
+                </li>
+            </ul>
+            <!-- EDIT: link to your resume pdf, or remove this line -->
+            <p class="panel-foot"><a href="#" target="_blank" rel="noopener">download pdf →</a></p>
+        </div>
+    </section>
+
     <section class="panel" id="panel-email" role="dialog" aria-labelledby="panel-email-title">
         <header class="panel-head">
             <h2 class="panel-title" id="panel-email-title">~/email</h2>
             <button class="panel-close" type="button" aria-label="close">[x]</button>
         </header>
         <div class="panel-body">
-            <p>say hi — collaborations, questions, or just to chat.</p>
+            <!-- <p>say hi — collaborations, questions, or just to chat.</p> -->
             <p class="panel-foot"><a href="mailto:harisasaif@gmail.com">harisasaif@gmail.com →</a></p>
         </div>
     </section>
 
-    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme">
-        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-            style="display: block;">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-            style="display: none;">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-    </button>
-
     <div class="vignette" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
     <div class="reticle" aria-hidden="true"><span class="reticle-label" id="reticle-label"></span></div>
-    <div class="drag-hint" id="drag-hint" aria-hidden="true"><span class="drag-hint-glyph">↔</span> click + drag to look around</div>
+    <div class="drag-hint" id="drag-hint" aria-hidden="true"><span class="drag-hint-text">drag to look</span></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="main.js"></script>

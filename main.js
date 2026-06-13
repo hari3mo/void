@@ -12,7 +12,6 @@ const NAME = 'haris saif';
 // Keep in sync with the hrefs in index.html.
 const LINKS = {
     github: 'https://github.com/hari3mo',
-    linkedin: 'https://www.linkedin.com/in/REPLACE-ME',
     email: 'mailto:harisasaif@gmail.com'
 };
 
@@ -228,7 +227,7 @@ async function waitForFonts() {
 
     const planetMats = makeMaterialSet(charSet,
         (ch) => rampColor(palette().planet, rankOf[ch]),
-        () => 0.15);
+        () => SMALL ? 0.17 : 0.15);
 
     const starMats = makeMaterialSet(starCharSet,
         (ch) => rampColor(palette().star, starCharSet.indexOf(ch) / (starCharSet.length - 1)),
@@ -236,8 +235,8 @@ async function waitForFonts() {
         { transparent: true });
 
     const flavorMats = makeMaterialSet(charSet, () => palette().flavor, () => 0.12);
-    const navMats = makeMaterialSet(charSet, () => palette().nav, () => 0.24);
-    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => 0.30);
+    const navMats = makeMaterialSet(charSet, () => palette().nav, () => SMALL ? 0.30 : 0.24);
+    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => SMALL ? 0.38 : 0.30);
 
     function createAsciiSphere(pointsCount, radius, mats) {
         const sphereData = {};
@@ -445,7 +444,8 @@ async function waitForFonts() {
         }
         return group;
     }
-    ringSpin.add(createPhotonRing(480));
+    const photonRing = createPhotonRing(480);
+    ringSpin.add(photonRing);
 
     // Orbiting bodies — irregular radii, phases, heights and sizes so the
     // orbital layer reads as a natural system rather than a flat square.
@@ -453,7 +453,7 @@ async function waitForFonts() {
         { word: 'projects', angle: 0.35, radius: 3.6, height: 0.45, size: 0.30 },
         { word: 'about', angle: 1.55, radius: 4.6, height: -0.30, size: 0.24 },
         { word: 'github', angle: 2.80, radius: 4.2, height: 0.15, size: 0.34 },
-        { word: 'linkedin', angle: 4.05, radius: 5.2, height: -0.50, size: 0.27 },
+        { word: 'resume', angle: 4.05, radius: 5.2, height: -0.50, size: 0.27 },
         { word: 'email', angle: 5.30, radius: 4.0, height: 0.30, size: 0.22 }
     ];
 
@@ -481,7 +481,7 @@ async function waitForFonts() {
     const WORD_GAP = 1.35;  // arc length between words
     const NAV_LIFT = 0.12;  // nav words float just above the dust plane
 
-    const NAV_WORDS = new Set(['projects', 'about', 'github', 'linkedin', 'email']);
+    const NAV_WORDS = new Set(['projects', 'about', 'github', 'resume', 'email']);
     const ARM_WORDS = [
         ['mysql', 'rds', 'elasticbeanstalk', 'health'],
         ['ucsd', 'cogs109', 'python', 'syn100', 'coursewise']
@@ -705,21 +705,19 @@ async function waitForFonts() {
     scene.add(starGroup);
 
     // ---------------------------------------------------------- theme ----
-    const sunIcon = document.getElementById('icon-sun');
-    const moonIcon = document.getElementById('icon-moon');
-    document.getElementById('theme-toggle').addEventListener('click', () => {
+    // Toggled by clicking the black hole's core (see the canvas click handler).
+    function toggleTheme() {
         theme = theme === 'dark' ? 'light' : 'dark';
         applyCssTheme();
         sceneBg.set(palette().bg);
         retintMaterials();
-        sunIcon.style.display = theme === 'dark' ? 'block' : 'none';
-        moonIcon.style.display = theme === 'dark' ? 'none' : 'block';
-    });
+    }
 
     // --------------------------------------------------------- panels ----
     const panels = {
         about: document.getElementById('panel-about'),
         projects: document.getElementById('panel-projects'),
+        resume: document.getElementById('panel-resume'),
         email: document.getElementById('panel-email')
     };
     let lastFocus = null;
@@ -751,7 +749,24 @@ async function waitForFonts() {
         btn.addEventListener('click', closePanels);
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closePanels();
+        if (e.key === 'Escape') { closePanels(); return; }
+        if (panelOpen) return;  // let the open panel keep the keyboard
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            kbIndex = (kbIndex + 1) % orbitingPlanets.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            kbIndex = (kbIndex - 1 + orbitingPlanets.length) % orbitingPlanets.length;
+        } else if ((e.key === 'Enter' || e.key === ' ') && hoveredWord) {
+            e.preventDefault();
+            navActivate(hoveredWord);
+            return;
+        } else {
+            return;
+        }
+        e.preventDefault();
+        keyboardNav = true;
+        document.body.classList.add('on-canvas');  // reveal the reticle/label
+        setHoveredWord(orbitingPlanets[kbIndex].word);
     });
     document.addEventListener('pointerdown', (e) => {
         if (!e.target.closest('.panel') && !e.target.closest('.links')) closePanels();
@@ -763,6 +778,8 @@ async function waitForFonts() {
     let pointerPxX = -100, pointerPxY = -100;
     let pointerSeen = false;
     let pointerDown = false;
+    let keyboardNav = false;  // arrow-key planet focus; mouse movement reclaims hover
+    let kbIndex = -1;
 
     function setPointer(clientX, clientY) {
         targetPointerX = Math.max(-1, Math.min(1, (clientX - window.innerWidth / 2) / (window.innerWidth / 2)));
@@ -773,6 +790,7 @@ async function waitForFonts() {
     }
 
     document.addEventListener('mousemove', (e) => {
+        keyboardNav = false;  // pointer reclaims hover control
         setPointer(e.clientX, e.clientY);
         // The reticle only lives over the void itself; chrome keeps the
         // native cursor.
@@ -807,10 +825,24 @@ async function waitForFonts() {
     // wins. Pixel-based reach stays accurate at any dolly distance, and the
     // release radius is wider than the grab radius so a hovered planet doesn't
     // flicker as the spinning ring drifts under the cursor.
-    const PICK_RADIUS = 28;
-    const PICK_RELEASE = 52;
+    const PICK_RADIUS = SMALL ? 40 : 28;
+    const PICK_RELEASE = SMALL ? 64 : 52;
     const pickV = new THREE.Vector3();
     let hoveredWord = null;
+    let hoveredCore = false;
+
+    // The black hole's shadow projected to screen — used both to highlight the
+    // core on hover and to toggle the theme on click. Origin is the system
+    // centre, and the camera always looks at it, so depth is just its distance.
+    function overCore(px, py) {
+        const halfV = Math.tan((FOV * Math.PI) / 360);
+        const depth = camera.position.length();
+        const screenR = (EVENT_HORIZON / (2 * depth * halfV)) * window.innerHeight;
+        pickV.set(0, 0, 0).project(camera);
+        const dx = (pickV.x + 1) * window.innerWidth / 2 - px;
+        const dy = (1 - pickV.y) * window.innerHeight / 2 - py;
+        return Math.hypot(dx, dy) <= screenR;
+    }
 
     function pickWord(px, py) {
         let bestWord = null, bestD = Infinity;
@@ -848,14 +880,21 @@ async function waitForFonts() {
         if (labelEl) labelEl.textContent = word ? '> ' + word : '';
     }
 
+    // Hovering the core swells the photon ring the same way a planet swells
+    // (see the animate loop) — no label, just the pulse.
+    function setHoveredCore(on) {
+        hoveredCore = on;
+    }
+
     function navActivate(word) {
-        if (word === 'projects' || word === 'about' || word === 'email') openPanel(word);
+        if (word === 'projects' || word === 'about' || word === 'resume' || word === 'email') openPanel(word);
         else if (LINKS[word]) window.open(LINKS[word], '_blank', 'noopener');
     }
 
     renderer.domElement.addEventListener('click', (e) => {
         const word = pickWord(e.clientX, e.clientY);
-        if (word) navActivate(word);
+        if (word) { navActivate(word); return; }
+        if (overCore(e.clientX, e.clientY)) toggleTheme();
     });
 
     document.getElementById('nametext').textContent = NAME.toLowerCase();
@@ -872,8 +911,9 @@ async function waitForFonts() {
 
     if (REDUCED) camera.position.set(0, 0, camDist);
 
+    let rafId = null;
     function animate() {
-        requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(animate);
         const dt = Math.min(clock.getDelta(), 0.1);
         elapsed += dt;
 
@@ -894,6 +934,11 @@ async function waitForFonts() {
             const s = p.group.scale.x + (scaleTarget - p.group.scale.x) * (1 - Math.exp(-6 * dt));
             p.group.scale.setScalar(s);
         });
+
+        // The core pulses the same way a planet does when hovered.
+        const coreTarget = hoveredCore ? 1.18 : 1;
+        const cs = photonRing.scale.x + (coreTarget - photonRing.scale.x) * (1 - Math.exp(-6 * dt));
+        photonRing.scale.setScalar(cs);
 
         starGroup.rotation.y -= 0.025 * dt * motionK;
         starGroup.rotation.x -= 0.010 * dt * motionK;
@@ -930,7 +975,20 @@ async function waitForFonts() {
             camera.position.y += (desiredY - camera.position.y) * k;
             camera.position.z += (desiredZ - camera.position.z) * k;
 
-            if (pointerSeen) setHoveredWord(pickWord(pointerPxX, pointerPxY));
+            if (keyboardNav && hoveredWord) {
+                // Park the reticle on the keyboard-focused planet.
+                const kp = orbitingPlanets.find((p) => p.word === hoveredWord);
+                if (kp) {
+                    pickV.setFromMatrixPosition(kp.group.matrixWorld);
+                    pickV.project(camera);
+                    pointerPxX = (pickV.x + 1) * window.innerWidth / 2;
+                    pointerPxY = (1 - pickV.y) * window.innerHeight / 2;
+                }
+            } else if (pointerSeen) {
+                const w = pickWord(pointerPxX, pointerPxY);
+                setHoveredWord(w);
+                setHoveredCore(!w && overCore(pointerPxX, pointerPxY));
+            }
         } else {
             // Snappy visual intro zoom effect
             const introSpeed = 5;
@@ -960,6 +1018,17 @@ async function waitForFonts() {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
         camDist = cameraDistance();
+    });
+
+    // Stop the loop while the tab is backgrounded; resume cleanly without a
+    // delta-time jump.
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        } else if (rafId === null) {
+            clock.getDelta();  // discard the gap so dt stays small
+            animate();
+        }
     });
 
     animate();
