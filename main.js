@@ -235,8 +235,8 @@ async function waitForFonts() {
         { transparent: true });
 
     const flavorMats = makeMaterialSet(charSet, () => palette().flavor, () => 0.12);
-    const navMats = makeMaterialSet(charSet, () => palette().nav, () => SMALL ? 0.30 : 0.24);
-    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => SMALL ? 0.38 : 0.30);
+    const navMats = makeMaterialSet(charSet, () => palette().nav, () => SMALL ? 0.38 : 0.32);
+    const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => SMALL ? 0.46 : 0.40);
 
     function createAsciiSphere(pointsCount, radius, mats) {
         const sphereData = {};

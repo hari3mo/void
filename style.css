@@ -366,11 +366,11 @@ body.on-canvas .reticle {
 }
 
 body.nav-hover .reticle::before {
-    transform: rotate(45deg) scale(1.5);
+    transform: rotate(45deg);
 }
 
 body.nav-hover .reticle::after {
-    transform: rotate(45deg) scale(1.5);
+    transform: rotate(45deg);
 }
 
 .reticle-label {
@@ -379,7 +379,7 @@ body.nav-hover .reticle::after {
     top: 10px;
     font-size: 10px;
     letter-spacing: 0.18em;
-    text-transform: uppercase;
+    text-transform: lowercase;
     white-space: nowrap;
     color: var(--fg);
     background: color-mix(in srgb, var(--bg) 78%, transparent);
