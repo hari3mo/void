@@ -25,14 +25,21 @@
     </header>
 
     <nav class="links" aria-label="links">
-        <button class="link" type="button" data-panel="about">about</button>
-        <button class="link" type="button" data-panel="projects">projects</button>
-        <button class="link" type="button" data-panel="resume">resume</button>
-        <a class="link" href="https://github.com/hari3mo" target="_blank" rel="noopener">github</a>
-        <button class="link" type="button" data-panel="email">email</button>
+        <button class="link" type="button" data-panel="about" data-sky-destination="about"
+            aria-controls="panel-about" aria-expanded="false">about</button>
+        <button class="link" type="button" data-panel="projects" data-sky-destination="projects"
+            aria-controls="panel-projects" aria-expanded="false">projects</button>
+        <button class="link" type="button" data-panel="resume" data-sky-destination="resume"
+            aria-controls="panel-resume" aria-expanded="false">resume</button>
+        <button class="link" type="button" data-panel="github" data-sky-destination="github"
+            aria-controls="panel-github" aria-expanded="false">github</button>
+        <button class="link" type="button" data-panel="linkedin" data-sky-destination="linkedin"
+            aria-controls="panel-linkedin" aria-expanded="false">linkedin</button>
+        <button class="link" type="button" data-panel="email" data-sky-destination="email"
+            aria-controls="panel-email" aria-expanded="false">email</button>
     </nav>
 
-    <section class="panel" id="panel-about" role="dialog" aria-labelledby="panel-about-title">
+    <section class="panel" id="panel-about" role="dialog" aria-labelledby="panel-about-title" aria-hidden="true">
         <header class="panel-head">
             <h2 class="panel-title" id="panel-about-title">~/about</h2>
             <button class="panel-close" type="button" aria-label="close">[x]</button>
@@ -46,7 +53,7 @@
         </div>
     </section>
 
-    <section class="panel" id="panel-projects" role="dialog" aria-labelledby="panel-projects-title">
+    <section class="panel" id="panel-projects" role="dialog" aria-labelledby="panel-projects-title" aria-hidden="true">
         <header class="panel-head">
             <h2 class="panel-title" id="panel-projects-title">~/projects</h2>
             <button class="panel-close" type="button" aria-label="close">[x]</button>
@@ -97,7 +104,7 @@
         </div>
     </section>
 
-    <section class="panel" id="panel-resume" role="dialog" aria-labelledby="panel-resume-title">
+    <section class="panel" id="panel-resume" role="dialog" aria-labelledby="panel-resume-title" aria-hidden="true">
         <header class="panel-head">
             <h2 class="panel-title" id="panel-resume-title">~/resume</h2>
             <button class="panel-close" type="button" aria-label="close">[x]</button>
@@ -132,7 +139,27 @@
         </div>
     </section>
 
-    <section class="panel" id="panel-email" role="dialog" aria-labelledby="panel-email-title">
+    <section class="panel" id="panel-github" role="dialog" aria-labelledby="panel-github-title" aria-hidden="true">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-github-title">~/github</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <p class="panel-foot"><a href="https://github.com/hari3mo">github.com/hari3mo →</a></p>
+        </div>
+    </section>
+
+    <section class="panel" id="panel-linkedin" role="dialog" aria-labelledby="panel-linkedin-title" aria-hidden="true">
+        <header class="panel-head">
+            <h2 class="panel-title" id="panel-linkedin-title">~/linkedin</h2>
+            <button class="panel-close" type="button" aria-label="close">[x]</button>
+        </header>
+        <div class="panel-body">
+            <p class="panel-foot"><a href="https://www.linkedin.com/in/haris-saif-8036762ba/">linkedin.com/in/haris-saif-8036762ba →</a></p>
+        </div>
+    </section>
+
+    <section class="panel" id="panel-email" role="dialog" aria-labelledby="panel-email-title" aria-hidden="true">
         <header class="panel-head">
             <h2 class="panel-title" id="panel-email-title">~/email</h2>
             <button class="panel-close" type="button" aria-label="close">[x]</button>

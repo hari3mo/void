@@ -8,13 +8,6 @@
 
 const NAME = 'haris saif';
 
-// EDIT: destinations for the galaxy nav words.
-// Keep in sync with the hrefs in index.html.
-const LINKS = {
-    github: 'https://github.com/hari3mo',
-    email: 'mailto:harisasaif@gmail.com'
-};
-
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SMALL = Math.min(window.innerWidth, window.innerHeight) < 700;
 
@@ -453,6 +446,7 @@ async function waitForFonts() {
         { word: 'projects', angle: 0.35, radius: 3.6, height: 0.45, size: 0.30 },
         { word: 'about', angle: 1.55, radius: 4.6, height: -0.30, size: 0.24 },
         { word: 'github', angle: 2.80, radius: 4.2, height: 0.15, size: 0.34 },
+        // { word: 'linkedin', angle: 3.45, radius: 5.7, height: 0.35, size: 0.25 },
         { word: 'resume', angle: 4.05, radius: 5.2, height: -0.50, size: 0.27 },
         { word: 'email', angle: 5.30, radius: 4.0, height: 0.30, size: 0.22 }
     ];
@@ -718,14 +712,25 @@ async function waitForFonts() {
         about: document.getElementById('panel-about'),
         projects: document.getElementById('panel-projects'),
         resume: document.getElementById('panel-resume'),
+        github: document.getElementById('panel-github'),
+        linkedin: document.getElementById('panel-linkedin'),
         email: document.getElementById('panel-email')
     };
     let lastFocus = null;
     let panelOpen = false;
 
     function openPanel(name) {
+        if (!panels[name]) return;
         lastFocus = document.activeElement;
-        for (const key in panels) panels[key].classList.toggle('open', key === name);
+        document.body.classList.add('panel-open');
+        for (const key in panels) {
+            const open = key === name;
+            panels[key].classList.toggle('open', open);
+            panels[key].setAttribute('aria-hidden', String(!open));
+        }
+        document.querySelectorAll('[data-panel]').forEach((button) => {
+            button.setAttribute('aria-expanded', String(button.dataset.panel === name));
+        });
         panels[name].querySelector('.panel-close').focus({ preventScroll: true });
         panelOpen = true;
     }
@@ -735,7 +740,12 @@ async function waitForFonts() {
         for (const key in panels) {
             if (panels[key].classList.contains('open')) wasOpen = true;
             panels[key].classList.remove('open');
+            panels[key].setAttribute('aria-hidden', 'true');
         }
+        document.querySelectorAll('[data-panel]').forEach((button) => {
+            button.setAttribute('aria-expanded', 'false');
+        });
+        document.body.classList.remove('panel-open');
         panelOpen = false;
         if (wasOpen && lastFocus && document.contains(lastFocus)) {
             lastFocus.focus({ preventScroll: true });
@@ -887,8 +897,8 @@ async function waitForFonts() {
     }
 
     function navActivate(word) {
-        if (word === 'projects' || word === 'about' || word === 'resume' || word === 'email') openPanel(word);
-        else if (LINKS[word]) window.open(LINKS[word], '_blank', 'noopener');
+        const destination = document.querySelector(`[data-sky-destination="${word}"]`);
+        if (destination) destination.click();
     }
 
     renderer.domElement.addEventListener('click', (e) => {
