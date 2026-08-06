@@ -234,6 +234,21 @@ async function waitForFonts() {
     const flavorMats = makeMaterialSet(charSet, () => palette().flavor, () => 0.12);
     const navMats = makeMaterialSet(charSet, () => palette().nav, () => SMALL ? 0.38 : 0.32);
     const navHotMats = makeMaterialSet(charSet, () => palette().navHot, () => SMALL ? 0.46 : 0.40);
+    const galaxyDimMaterials = [
+        ...Object.values(diskMats),
+        ...Object.values(dustMats),
+        ...Object.values(flavorMats),
+        ...Object.values(navMats)
+    ];
+    const GALAXY_HOVER_BRIGHTNESS = 0.24;
+    const GALAXY_HOVER_EASE = 7;
+    let galaxyBrightness = 1;
+
+    function applyGalaxyBrightness(value) {
+        for (const material of galaxyDimMaterials) {
+            material.color.setRGB(value, value, value);
+        }
+    }
 
     function createAsciiSphere(pointsCount, radius, mats) {
         const sphereData = {};
@@ -930,6 +945,14 @@ async function waitForFonts() {
         rafId = requestAnimationFrame(animate);
         const dt = Math.min(clock.getDelta(), 0.1);
         elapsed += dt;
+
+        const galaxyBrightnessTarget = hoveredWord && !panelOpen
+            ? GALAXY_HOVER_BRIGHTNESS
+            : 1;
+        galaxyBrightness = REDUCED ? galaxyBrightnessTarget :
+            galaxyBrightness + (galaxyBrightnessTarget - galaxyBrightness) *
+                (1 - Math.exp(-GALAXY_HOVER_EASE * dt));
+        applyGalaxyBrightness(galaxyBrightness);
 
         const spinTarget = REDUCED ? 0 : (hoveredWord || panelOpen ? 0.18 : 1);
         spinScale += (spinTarget - spinScale) * (1 - Math.exp(-4 * dt));
