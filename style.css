@@ -101,20 +101,19 @@ button {
     min-height: 28px;
     padding: 7px 4px;
     margin: -7px -4px;
-    color: var(--fg);
+    color: var(--muted);
     font-size: 10px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     text-decoration: none;
-    opacity: 0.5;
     cursor: pointer;
-    transition: opacity 0.25s ease;
+    transition: color 0.25s ease;
 }
 
 .link:hover,
 .link:focus-visible,
 .link[aria-expanded='true'] {
-    opacity: 1;
+    color: var(--fg);
     text-decoration: underline;
     text-underline-offset: 5px;
     text-decoration-thickness: 1px;
@@ -191,16 +190,15 @@ button {
     min-height: 32px;
     padding: 8px;
     margin: -8px -8px 0 0;
-    color: var(--fg);
+    color: var(--muted);
     font-size: 11px;
     line-height: 1;
-    opacity: 0.45;
     cursor: pointer;
-    transition: opacity 0.25s ease;
+    transition: color 0.25s ease;
 }
 
 .panel-close:hover {
-    opacity: 1;
+    color: var(--fg);
 }
 
 .panel-body {
@@ -496,13 +494,13 @@ body.dragged .drag-hint {
     transition-delay: 0s;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .drag-hint-text { animation: none; clip-path: none; }
-}
-
 body.loaded.panel-open .drag-hint {
     opacity: 0;
     transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drag-hint-text { animation: none; clip-path: none; }
 }
 
 /* ---------------------------------------------------------------- mobile */
