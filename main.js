@@ -38,7 +38,10 @@ const PALETTES = {
         planet: [[0, '#6e6e6e'], [1, '#ededed']],
         flavor: '#888888',
         nav: '#f0f0f0',
-        navHot: '#ffffff'
+        navHot: '#ffffff',
+        streak: '#f3f3f3',
+        streakHead: '#bbbbbb',
+        streakTail: '#b3b3b3'
     },
     light: {
         bg: '#f3f3f3', fg: '#181818',
@@ -50,7 +53,10 @@ const PALETTES = {
         planet: [[0, '#9a9a9a'], [1, '#2a2a2a']],
         flavor: '#9a9a9a',
         nav: '#202020',
-        navHot: '#000000'
+        navHot: '#000000',
+        streak: '#2a2a2a',
+        streakHead: '#6b6b6b',
+        streakTail: '#646464'
     }
 };
 
@@ -717,6 +723,291 @@ async function waitForFonts() {
     }
     scene.add(starGroup);
 
+    // One ambient shooting star and one user meteor share a fixed ASCII trail
+    // pool, so transient sky events do not allocate while animating.
+    function createSkyEvents() {
+        const trailPattern = ['*', '+', '+', '=', '-', '-', '-', ':', '.', '.', '.', '.'];
+        const trailChars = Array.from(new Set(trailPattern));
+        const trailLength = trailPattern.length;
+        const maxEvents = 2;
+        const perEventCounts = {};
+        for (const ch of trailChars) perEventCounts[ch] = 0;
+        for (const ch of trailPattern) perEventCounts[ch]++;
+
+        const streakBuckets = {};
+        for (const ch of trailChars) {
+            const count = perEventCounts[ch] * maxEvents;
+            const positions = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            positions.fill(10000);
+            const posAttr = new THREE.BufferAttribute(positions, 3);
+            const colorAttr = new THREE.BufferAttribute(colors, 3);
+            posAttr.setUsage(THREE.DynamicDrawUsage);
+            colorAttr.setUsage(THREE.DynamicDrawUsage);
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', posAttr);
+            geometry.setAttribute('color', colorAttr);
+            const material = new THREE.PointsMaterial({
+                size: ch === '*' ? (SMALL ? 0.36 : 0.32) :
+                    ch === '+' ? 0.24 : ch === '=' ? 0.20 : ch === '-' ? 0.16 : 0.11,
+                map: createCharTexture(ch, '#ffffff'),
+                vertexColors: true,
+                alphaTest: 0.02,
+                transparent: true,
+                depthWrite: false
+            });
+            const points = new THREE.Points(geometry, material);
+            points.frustumCulled = false;
+            points.visible = false;
+            streakBuckets[ch] = { positions, colors, posAttr, colorAttr, points };
+            scene.add(points);
+        }
+
+        const slotRefs = Array.from({ length: maxEvents }, () => []);
+        for (let eventIndex = 0; eventIndex < maxEvents; eventIndex++) {
+            const occurrence = {};
+            for (const ch of trailChars) occurrence[ch] = 0;
+            for (let trailIndex = 0; trailIndex < trailLength; trailIndex++) {
+                const ch = trailPattern[trailIndex];
+                slotRefs[eventIndex][trailIndex] = {
+                    ch,
+                    pointIndex: eventIndex * perEventCounts[ch] + occurrence[ch]++
+                };
+            }
+        }
+
+        const events = Array.from({ length: maxEvents }, () => ({
+            active: false,
+            type: 'shooting',
+            age: 0,
+            duration: 0,
+            startRadius: 0,
+            x: 0, y: 0, z: 0,
+            vx: 0, vy: 0, vz: 0,
+            historyClock: 0,
+            history: new Float32Array(trailLength * 3)
+        }));
+        const shootColor = new THREE.Color();
+        const headColor = new THREE.Color();
+        const tailColor = new THREE.Color();
+
+        function retint() {
+            shootColor.set(palette().streak);
+            headColor.set(palette().streakHead);
+            tailColor.set(palette().streakTail);
+        }
+        retint();
+
+        function resetHistory(event) {
+            for (let i = 0; i < trailLength; i++) {
+                event.history[i * 3] = event.x;
+                event.history[i * 3 + 1] = event.y;
+                event.history[i * 3 + 2] = event.z;
+            }
+            event.historyClock = 0;
+        }
+
+        function spawnShootingStar() {
+            const event = events[0];
+            if (event.active) return false;
+            const side = Math.random() < 0.5 ? -1 : 1;
+            const skyReach = SMALL ? 6.4 : 14.5;
+            event.active = true;
+            event.type = 'shooting';
+            event.age = 0;
+            event.duration = 2.4;
+            event.x = side * skyReach;
+            event.y = (2.8 + Math.random() * (SMALL ? 3.5 : 4.5)) * (Math.random() < 0.84 ? 1 : -1);
+            event.z = -2.5 + Math.random() * 4;
+            event.vx = -side * (SMALL ? 7.2 + Math.random() * 1.5 : 13 + Math.random() * 2.5);
+            event.vy = -Math.sign(event.y) * (0.9 + Math.random() * 1.25);
+            event.vz = (Math.random() - 0.5) * 0.18;
+            resetHistory(event);
+            return true;
+        }
+
+        const castPoint = new THREE.Vector3();
+        const castDirection = new THREE.Vector3();
+        function castFromScreen(clientX, clientY, activeCamera) {
+            if (REDUCED) return false;
+            const event = events[1];
+            if (event.active) return false;
+
+            castPoint.set(
+                (clientX / window.innerWidth) * 2 - 1,
+                -(clientY / window.innerHeight) * 2 + 1,
+                0.2
+            ).unproject(activeCamera);
+            castDirection.copy(castPoint).sub(activeCamera.position).normalize();
+            const distance = -activeCamera.position.z / castDirection.z;
+            castPoint.copy(activeCamera.position).add(castDirection.multiplyScalar(distance));
+
+            let radius = Math.hypot(castPoint.x, castPoint.y, castPoint.z);
+            if (radius < 3.2) {
+                const angle = radius > 0.05
+                    ? Math.atan2(castPoint.y, castPoint.x)
+                    : Math.random() * Math.PI * 2;
+                castPoint.set(Math.cos(angle) * 3.2, Math.sin(angle) * 3.2, 0);
+                radius = 3.2;
+            } else if (radius > 13) {
+                castPoint.multiplyScalar(13 / radius);
+                radius = 13;
+            }
+
+            const nx = castPoint.x / radius;
+            const ny = castPoint.y / radius;
+            const nz = castPoint.z / radius;
+            const orbitDirection = Math.random() < 0.5 ? -1 : 1;
+            event.active = true;
+            event.type = 'meteor';
+            event.age = 0;
+            event.duration = 2;
+            event.startRadius = radius;
+            event.x = castPoint.x;
+            event.y = castPoint.y;
+            event.z = castPoint.z;
+            event.vx = -nx * 0.95 + (-ny) * 1.25 * orbitDirection;
+            event.vy = -ny * 0.95 + nx * 1.25 * orbitDirection;
+            event.vz = -nz * 0.72;
+            resetHistory(event);
+            return true;
+        }
+
+        function shiftHistory(event, x, y, z) {
+            for (let i = trailLength - 1; i > 0; i--) {
+                event.history[i * 3] = event.history[(i - 1) * 3];
+                event.history[i * 3 + 1] = event.history[(i - 1) * 3 + 1];
+                event.history[i * 3 + 2] = event.history[(i - 1) * 3 + 2];
+            }
+            event.history[0] = x;
+            event.history[1] = y;
+            event.history[2] = z;
+        }
+
+        function updateEvent(event, dt, gravity) {
+            const previousX = event.x;
+            const previousY = event.y;
+            const previousZ = event.z;
+            const radiusSquared = event.x * event.x + event.y * event.y + event.z * event.z;
+            const radius = Math.sqrt(radiusSquared);
+            const pull = event.type === 'meteor'
+                ? (7 + gravity * 5.5) / Math.max(radiusSquared, 1.2)
+                : (0.45 + gravity * 1.4) / Math.max(radiusSquared, 5);
+            const invRadius = 1 / Math.max(radius, 0.001);
+            event.vx -= event.x * invRadius * pull * dt;
+            event.vy -= event.y * invRadius * pull * dt;
+            event.vz -= event.z * invRadius * pull * dt;
+
+            if (event.type === 'meteor') {
+                const drag = Math.exp(-(0.05 + gravity * 0.025) * dt);
+                event.vx *= drag;
+                event.vy *= drag;
+                event.vz *= drag;
+            }
+
+            event.x += event.vx * dt;
+            event.y += event.vy * dt;
+            event.z += event.vz * dt;
+            event.age += dt;
+
+            // Keep the orbiting angle from the velocity, but guarantee a cast
+            // reaches the horizon before its two-second trail expires.
+            if (event.type === 'meteor') {
+                const captureRadius = EVENT_HORIZON + 0.1;
+                const progress = Math.min(1, event.age / event.duration);
+                const targetRadius = captureRadius +
+                    (event.startRadius - captureRadius) * Math.pow(1 - progress, 1.35);
+                const rawRadius = Math.hypot(event.x, event.y, event.z);
+                if (rawRadius > 0.0001) {
+                    const scale = targetRadius / rawRadius;
+                    event.x *= scale;
+                    event.y *= scale;
+                    event.z *= scale;
+                }
+            }
+
+            const historyStep = event.type === 'meteor' ? 0.06 : 0.022;
+            let sampleAt = historyStep - event.historyClock;
+            while (sampleAt <= dt + 0.000001) {
+                const sampleT = Math.min(1, sampleAt / dt);
+                shiftHistory(
+                    event,
+                    previousX + (event.x - previousX) * sampleT,
+                    previousY + (event.y - previousY) * sampleT,
+                    previousZ + (event.z - previousZ) * sampleT
+                );
+                sampleAt += historyStep;
+            }
+            event.historyClock = (event.historyClock + dt) % historyStep;
+
+            const nextRadius = Math.hypot(event.x, event.y, event.z);
+            if (nextRadius <= EVENT_HORIZON + 0.18) {
+                event.active = false;
+            } else if (
+                event.age >= event.duration ||
+                Math.abs(event.x) > 24 || Math.abs(event.y) > 18 || Math.abs(event.z) > 18
+            ) event.active = false;
+        }
+
+        function writeStreakBuffers() {
+            for (const ch of trailChars) {
+                streakBuckets[ch].positions.fill(10000);
+                streakBuckets[ch].colors.fill(0);
+            }
+            events.forEach((event, eventIndex) => {
+                if (!event.active) return;
+                for (let trailIndex = 0; trailIndex < trailLength; trailIndex++) {
+                    const ref = slotRefs[eventIndex][trailIndex];
+                    const bucket = streakBuckets[ref.ch];
+                    const offset = ref.pointIndex * 3;
+                    const historyOffset = trailIndex * 3;
+                    bucket.positions[offset] = event.history[historyOffset];
+                    bucket.positions[offset + 1] = event.history[historyOffset + 1];
+                    bucket.positions[offset + 2] = event.history[historyOffset + 2];
+                    const tailT = trailIndex / (trailLength - 1);
+                    const brightness = 1 - tailT * 0.78;
+                    if (event.type === 'meteor') {
+                        const mix = tailT * 0.82;
+                        bucket.colors[offset] = (headColor.r * (1 - mix) + tailColor.r * mix) * brightness;
+                        bucket.colors[offset + 1] = (headColor.g * (1 - mix) + tailColor.g * mix) * brightness;
+                        bucket.colors[offset + 2] = (headColor.b * (1 - mix) + tailColor.b * mix) * brightness;
+                    } else {
+                        bucket.colors[offset] = shootColor.r * brightness;
+                        bucket.colors[offset + 1] = shootColor.g * brightness;
+                        bucket.colors[offset + 2] = shootColor.b * brightness;
+                    }
+                }
+            });
+            for (const ch of trailChars) {
+                streakBuckets[ch].posAttr.needsUpdate = true;
+                streakBuckets[ch].colorAttr.needsUpdate = true;
+                streakBuckets[ch].points.visible = true;
+            }
+        }
+
+        let nextShooting = 3.5;
+        function update(dt, gravity) {
+            if (REDUCED) return;
+            nextShooting -= dt;
+            if (nextShooting <= 0) {
+                if (spawnShootingStar()) nextShooting = 4 + Math.random() * 4;
+                else nextShooting = 1.5;
+            }
+            for (const event of events) {
+                if (event.active) updateEvent(event, dt, gravity);
+            }
+            if (events.some((event) => event.active)) {
+                writeStreakBuffers();
+            } else {
+                for (const ch of trailChars) streakBuckets[ch].points.visible = false;
+            }
+        }
+
+        return { update, retint, castFromScreen };
+    }
+
+    const skyEvents = createSkyEvents();
+
     // ---------------------------------------------------------- theme ----
     // Toggled by clicking the black hole's core (see the canvas click handler).
     function toggleTheme() {
@@ -724,6 +1015,7 @@ async function waitForFonts() {
         applyCssTheme();
         sceneBg.set(palette().bg);
         retintMaterials();
+        skyEvents.retint();
     }
 
     // --------------------------------------------------------- panels ----
@@ -923,7 +1215,8 @@ async function waitForFonts() {
     renderer.domElement.addEventListener('click', (e) => {
         const word = pickWord(e.clientX, e.clientY);
         if (word) { navActivate(word); return; }
-        if (overCore(e.clientX, e.clientY)) toggleTheme();
+        if (overCore(e.clientX, e.clientY)) { toggleTheme(); return; }
+        skyEvents.castFromScreen(e.clientX, e.clientY, camera);
     });
 
     document.getElementById('nametext').textContent = NAME.toLowerCase();
@@ -962,6 +1255,7 @@ async function waitForFonts() {
         dolly += (dollyTarget - dolly) * (1 - Math.exp(-3 * dt));
 
         updateAccretionDisk(dt * Math.max(motionK, 0.3));
+        skyEvents.update(dt, Math.max(0, feedScale - 1));
 
         // Spin each planet on its local axis; the hovered one swells a touch.
         orbitingPlanets.forEach((p, index) => {
