@@ -1099,6 +1099,11 @@ async function waitForFonts() {
     let pointerPxX = -100, pointerPxY = -100;
     let pointerSeen = false;
     let pointerDown = false;
+    let pointerDownAt = 0;
+    let pointerDownX = 0;
+    let pointerDownY = 0;
+    let pointerDragged = false;
+    let suppressCanvasClick = false;
     let keyboardNav = false;  // arrow-key planet focus; mouse movement reclaims hover
     let kbIndex = -1;
 
@@ -1120,17 +1125,35 @@ async function waitForFonts() {
     document.addEventListener('touchmove', (e) => {
         if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
+    document.addEventListener('pointermove', (e) => {
+        if (pointerDown && Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) > 10) {
+            pointerDragged = true;
+        }
+    });
 
     // Press and hold the void to engage: the camera parallax follows the
     // pointer and gravity surges, feeding the black hole. Release to let the
     // view glide back to center and the disk settle into its slow drain.
     renderer.domElement.addEventListener('pointerdown', (e) => {
         pointerDown = true;
+        pointerDownAt = performance.now();
+        pointerDownX = e.clientX;
+        pointerDownY = e.clientY;
+        pointerDragged = false;
+        suppressCanvasClick = false;
         feedTarget = 3.6;
         document.body.classList.add('dragged');
         setPointer(e.clientX, e.clientY);
     });
-    function releasePointer() { pointerDown = false; feedTarget = 1; }
+    function releasePointer(e) {
+        if (!pointerDown) return;
+        const heldFor = (performance.now() - pointerDownAt) / 1000;
+        if (e && e.type === 'pointerup') {
+            suppressCanvasClick = heldFor > 0.28 || pointerDragged;
+        }
+        pointerDown = false;
+        feedTarget = 1;
+    }
     window.addEventListener('pointerup', releasePointer);
     window.addEventListener('pointercancel', releasePointer);
     window.addEventListener('blur', releasePointer);
@@ -1213,6 +1236,10 @@ async function waitForFonts() {
     }
 
     renderer.domElement.addEventListener('click', (e) => {
+        if (suppressCanvasClick) {
+            suppressCanvasClick = false;
+            return;
+        }
         const word = pickWord(e.clientX, e.clientY);
         if (word) { navActivate(word); return; }
         if (overCore(e.clientX, e.clientY)) { toggleTheme(); return; }
