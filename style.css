@@ -432,29 +432,27 @@ body.nav-hover .reticle-label {
 .name,
 .tagline,
 .links {
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(.2, .7, .2, 1);
+    animation: interface-in 0.9s cubic-bezier(.2, .7, .2, 1) both;
 }
 
-body.loaded .name,
-body.loaded .tagline,
-body.loaded .links {
-    opacity: 1;
-    transform: translateY(0);
+.tagline {
+    animation-delay: 0.08s;
 }
 
-body.loaded .name {
-    transition-delay: 0.14s;
+.links {
+    animation-delay: 0.2s;
 }
 
-body.loaded .tagline {
-    transition-delay: 0.22s;
-    opacity: 0.55;
-}
+@keyframes interface-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
 
-body.loaded .links {
-    transition-delay: 0.34s;
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 /* ------------------------------------------------------------- drag hint */
 
@@ -633,6 +631,7 @@ body.loaded.panel-open .drag-hint {
     .links,
     .panel,
     canvas {
+        animation: none;
         transition: none;
         transform: none;
     }
