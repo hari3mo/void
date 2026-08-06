@@ -1106,6 +1106,14 @@ async function waitForFonts() {
     let suppressCanvasClick = false;
     let keyboardNav = false;  // arrow-key planet focus; mouse movement reclaims hover
     let kbIndex = -1;
+    const skyStatusEl = document.getElementById('sky-status');
+    let skyStatusText = 'drag · click';
+
+    function setSkyStatus(text) {
+        if (!skyStatusEl || text === skyStatusText) return;
+        skyStatusEl.textContent = text;
+        skyStatusText = text;
+    }
 
     function setPointer(clientX, clientY) {
         targetPointerX = Math.max(-1, Math.min(1, (clientX - window.innerWidth / 2) / (window.innerWidth / 2)));
@@ -1280,6 +1288,7 @@ async function waitForFonts() {
 
         feedScale += (feedTarget - feedScale) * (1 - Math.exp(-3.5 * dt));
         dolly += (dollyTarget - dolly) * (1 - Math.exp(-3 * dt));
+        setSkyStatus(pointerDown ? `gravity ${feedScale.toFixed(2)}×` : 'drag · click');
 
         updateAccretionDisk(dt * Math.max(motionK, 0.3));
         skyEvents.update(dt, Math.max(0, feedScale - 1));

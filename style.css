@@ -477,12 +477,12 @@ body.nav-hover .reticle-label {
 
 body.loaded .drag-hint {
     transition-delay: 1.4s;
-    opacity: 0.3;
+    opacity: 0.54;
 }
 
 .drag-hint-text {
     clip-path: inset(0 100% 0 0);
-    animation: drag-hint-type 1s steps(12, end) forwards;
+    animation: drag-hint-type 0.75s steps(12, end) forwards;
     animation-delay: 1.7s;
 }
 
@@ -490,9 +490,9 @@ body.loaded .drag-hint {
     to { clip-path: inset(0 0 0 0); }
 }
 
-/* fade out for good once the user has dragged */
+/* The instrument readout gains contrast while gravity is engaged. */
 body.dragged .drag-hint {
-    opacity: 0 !important;
+    opacity: 0.56;
     transition-delay: 0s;
 }
 
