@@ -29,8 +29,9 @@ const GLYPH_FONT = 'bold 24px "Space Mono", "Courier New", Courier, monospace';
 // intense on paper. No hue anywhere — tone comes from glyph density × gray.
 const PALETTES = {
     dark: {
-        bg: '#030305', fg: '#f2f2f2',
-        vignette: 'rgba(0, 0, 0, 0.34)',
+        bg: '#060606', fg: '#f6f6f6',
+        muted: '#b8b8b8', quiet: '#8b8b8b',
+        hair: 'rgba(184, 184, 184, 0.30)',
         disk: [[0, '#474747'], [0.45, '#909090'], [0.8, '#dcdcdc'], [1, '#ffffff']],
         dust: [[0, '#373737'], [0.5, '#707070'], [1, '#d4d4d4']],
         star: [[0, '#585858'], [1, '#dadada']],
@@ -40,8 +41,9 @@ const PALETTES = {
         navHot: '#ffffff'
     },
     light: {
-        bg: '#f6f6f4', fg: '#171717',
-        vignette: 'rgba(50, 50, 50, 0.12)',
+        bg: '#f3f3f3', fg: '#181818',
+        muted: '#555555', quiet: '#6f6f6f',
+        hair: 'rgba(49, 49, 49, 0.26)',
         disk: [[0, '#cccccc'], [0.45, '#8c8c8c'], [0.8, '#3a3a3a'], [1, '#0d0d0d']],
         dust: [[0, '#d3d3d3'], [0.5, '#929292'], [1, '#454545']],
         star: [[0, '#c9c9c9'], [1, '#525252']],
@@ -77,7 +79,9 @@ function applyCssTheme() {
     const p = palette();
     document.body.style.setProperty('--fg', p.fg);
     document.body.style.setProperty('--bg', p.bg);
-    document.body.style.setProperty('--vignette', p.vignette);
+    document.body.style.setProperty('--muted', p.muted);
+    document.body.style.setProperty('--quiet', p.quiet);
+    document.body.style.setProperty('--hair', p.hair);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', p.bg);
 }

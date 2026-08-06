@@ -1,9 +1,10 @@
 :root,
 body {
-    --fg: #f2f2f2;
-    --bg: #030305;
-    --vignette: rgba(0, 0, 0, 0.34);
-    --hair: rgba(127, 127, 127, 0.28);
+    --fg: #f6f6f6;
+    --bg: #060606;
+    --muted: #b8b8b8;
+    --quiet: #8b8b8b;
+    --hair: rgba(184, 184, 184, 0.30);
 }
 
 * {
@@ -77,7 +78,7 @@ button {
     font-size: 10px;
     letter-spacing: 0.24em;
     text-transform: uppercase;
-    opacity: 0.55;
+    color: var(--muted);
 }
 
 /* ----------------------------------------------------------------- links */
@@ -178,7 +179,7 @@ button {
     font-weight: 700;
     letter-spacing: 0.26em;
     text-transform: uppercase;
-    opacity: 0.55;
+    color: var(--muted);
 }
 
 .panel-close {
@@ -208,7 +209,7 @@ button {
 
 .panel-body p {
     margin: 0 0 10px;
-    opacity: 0.8;
+    color: var(--muted);
 }
 
 .panel-body p:last-child {
@@ -220,12 +221,11 @@ button {
     text-decoration: underline;
     text-underline-offset: 4px;
     text-decoration-thickness: 1px;
-    opacity: 0.7;
-    transition: opacity 0.25s ease;
+    transition: color 0.25s ease;
 }
 
 .panel-body a:hover {
-    opacity: 1;
+    color: var(--fg);
 }
 
 .projects {
@@ -245,7 +245,7 @@ button {
     position: absolute;
     left: 0;
     top: 0;
-    opacity: 0.4;
+    color: var(--quiet);
 }
 
 .projects li:last-child {
@@ -262,13 +262,13 @@ button {
     display: block;
     font-size: 11px;
     line-height: 1.6;
-    opacity: 0.55;
+    color: var(--muted);
 }
 
 .project-links {
     display: block;
     margin-top: 3px;
-    opacity: 0.4;
+    color: var(--quiet);
     font-size: 10px;
 }
 
@@ -282,6 +282,7 @@ button {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-color: var(--quiet) transparent;
     scrollbar-width: thin;
 }
 
@@ -290,7 +291,7 @@ button {
     font-size: 9px;
     letter-spacing: 0.24em;
     text-transform: uppercase;
-    opacity: 0.45 !important;
+    color: var(--quiet) !important;
     margin: 0 0 8px !important;
 }
 
@@ -303,17 +304,6 @@ button {
     overflow-wrap: anywhere;
 }
 
-/* -------------------------------------------------------------- vignette */
-
-.vignette {
-    position: fixed;
-    inset: 0;
-    z-index: 4;
-    pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 56%, var(--vignette) 100%);
-    transition: background 0.4s ease;
-}
-
 /* ----------------------------------------------------------------- grain */
 
 .grain {
@@ -321,7 +311,7 @@ button {
     inset: -64px;
     z-index: 5;
     pointer-events: none;
-    opacity: 0.05;
+    opacity: 0.025;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E");
     animation: grain-shift 0.7s steps(4) infinite;
 }
@@ -567,6 +557,7 @@ body.loaded.panel-open .drag-hint {
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+        scrollbar-color: var(--quiet) transparent;
         scrollbar-width: thin;
     }
 }
@@ -618,6 +609,7 @@ body.loaded.panel-open .drag-hint {
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+        scrollbar-color: var(--quiet) transparent;
         scrollbar-width: thin;
     }
 
