@@ -21,7 +21,7 @@ body {
     overflow: hidden;
     background: var(--bg);
     color: var(--fg);
-    font-family: 'Space Mono', 'Courier New', Courier, monospace;
+    font-family: 'Fragment Mono', 'Courier New', Courier, monospace;
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
@@ -68,15 +68,16 @@ button {
 
 .name {
     margin: 0;
-    font-size: 15px;
-    font-weight: 500;
+    font-family: 'Space Mono', 'Courier New', Courier, monospace;
+    font-size: 16px;
+    font-weight: 700;
     letter-spacing: 0.24em;
 }
 
 .tagline {
-    margin: 11px 0 0;
+    margin: 10px 0 0;
     font-size: 10px;
-    letter-spacing: 0.24em;
+    letter-spacing: 0.20em;
     text-transform: uppercase;
     color: var(--muted);
 }
